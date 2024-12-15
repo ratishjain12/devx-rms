@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+// prisma/schema.prisma
+model Employee {
+  id         Int      @id @default(autoincrement())
+  name       String
+  seniority  Seniority
+  skills     String[] // Array of skills as strings
+
+  // Relations
+  assignments Assignment[]
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  startDate   DateTime?
+  endDate     DateTime?
+  status      ProjectStatus // Current or Upcoming
+  tools       String[] // Array of tools as strings
+
+  // Relations
+  assignments Assignment[]
+}
+
+model Assignment {
+  id            Int      @id @default(autoincrement())
+  employeeId    Int
+  projectId     Int
+  startDate     DateTime
+  endDate       DateTime
+  utilisation   Float    // Percentage of involvement (0-100)
+
+  // Relations
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  project       Project  @relation(fields: [projectId], references: [id])
+
+  @@unique([employeeId, projectId, startDate]) // Ensure unique assignments
+}
+
+// Enums for specific field constraints
+enum Seniority {
+  SENIOR
+  JUNIOR
+  INTERN
+}
+
+enum ProjectStatus {
+  CURRENT
+  UPCOMING
+}
