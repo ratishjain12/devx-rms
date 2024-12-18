@@ -43,13 +43,6 @@ export default function Layout({ children }: { children: ReactNode }) {
             >
               <Link href="/assign">Assign</Link>
             </Button>
-            <Button
-              variant="ghost"
-              className={cn(buttonVariants.ghost, "text-primary-foreground")}
-              asChild
-            >
-              <Link href="/utilization">Utilization</Link>
-            </Button>
           </div>
         </nav>
       </header>

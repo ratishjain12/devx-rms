@@ -6,8 +6,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
-    const utilizationThreshold = parseInt(
-      searchParams.get("utilizationThreshold") || "80",
+    const availabilityThreshold = parseInt(
+      searchParams.get("availabilityThreshold") || "80",
       10
     );
 
@@ -23,15 +23,12 @@ export async function GET(request: Request) {
         assignments: {
           where: {
             OR: [
+              // Assignments that overlap with the requested period
               {
-                startDate: { lte: new Date(endDate) },
-                endDate: { gte: new Date(startDate) },
-              },
-              {
-                startDate: { gte: new Date(startDate), lte: new Date(endDate) },
-              },
-              {
-                endDate: { gte: new Date(startDate), lte: new Date(endDate) },
+                AND: [
+                  { startDate: { lte: new Date(endDate) } },
+                  { endDate: { gte: new Date(startDate) } },
+                ],
               },
             ],
           },
@@ -41,43 +38,39 @@ export async function GET(request: Request) {
 
     const availableEmployees = employees
       .map((employee) => {
-        const totalUtilization = employee.assignments.reduce(
+        // Sum up all utilizations from overlapping assignments
+        const currentUtilization = employee.assignments.reduce(
           (sum, assignment) => {
-            const assignmentStart =
-              new Date(assignment.startDate) < new Date(startDate)
-                ? new Date(startDate)
-                : new Date(assignment.startDate);
-            const assignmentEnd =
-              new Date(assignment.endDate) > new Date(endDate)
-                ? new Date(endDate)
-                : new Date(assignment.endDate);
-            const assignmentDays =
-              (assignmentEnd.getTime() - assignmentStart.getTime()) /
-              (1000 * 3600 * 24);
-            const totalDays =
-              (new Date(endDate).getTime() - new Date(startDate).getTime()) /
-              (1000 * 3600 * 24);
-            return sum + (assignment.utilisation * assignmentDays) / totalDays;
+            return sum + assignment.utilisation;
           },
           0
         );
 
+        // Calculate available utilization (can be negative if over-utilized)
+        const availableUtilization = 100 - currentUtilization;
+
         return {
-          ...employee,
-          currentUtilization: totalUtilization,
-          availableUtilization: 100 - totalUtilization,
+          id: employee.id,
+          name: employee.name,
+          seniority: employee.seniority,
+          skills: employee.skills,
+          currentUtilization: parseFloat(currentUtilization.toFixed(1)),
+          availableUtilization: parseFloat(availableUtilization.toFixed(1)),
         };
       })
       .filter(
-        (employee) =>
-          employee.availableUtilization >= 100 - utilizationThreshold
-      );
+        (employee) => employee.availableUtilization >= availabilityThreshold
+      )
+      .sort((a, b) => b.availableUtilization - a.availableUtilization);
 
     return NextResponse.json(availableEmployees);
   } catch (error) {
-    console.error("Failed to fetch available employees:", error);
+    console.error(
+      "Failed to fetch employees with minimum availability:",
+      error
+    );
     return NextResponse.json(
-      { error: "Failed to fetch available employees" },
+      { error: "Failed to fetch employees with minimum availability" },
       { status: 500 }
     );
   }

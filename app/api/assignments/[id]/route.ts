@@ -1,6 +1,26 @@
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
 
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const id = parseInt(params.id);
+
+    const deletedAssignment = await prisma.assignment.delete({
+      where: { id },
+    });
+
+    return NextResponse.json(deletedAssignment);
+  } catch (error) {
+    console.error("Failed to delete assignment:", error);
+    return NextResponse.json(
+      { error: "Failed to delete assignment" },
+      { status: 500 }
+    );
+  }
+}
 export async function PUT(
   request: Request,
   { params }: { params: { id: string } }

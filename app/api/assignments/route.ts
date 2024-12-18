@@ -1,56 +1,71 @@
-// app/api/assignments/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { employeeIds, projectId, startDate, endDate, utilisation } = body;
+    const { employeeId, projectId, startDate, endDate, utilisation } = body;
 
     // Validate the input
-    if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+    if (!employeeId || !projectId || !startDate || !endDate || !utilisation) {
       return NextResponse.json(
-        { error: "employeeIds must be a non-empty array" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Create assignments for all employees in a transaction
-    const assignments = await prisma.$transaction(async (tx) => {
-      const assignmentPromises = employeeIds.map((employeeId) =>
-        tx.assignment.create({
-          data: {
-            employeeId,
-            projectId,
-            startDate: new Date(startDate),
-            endDate: new Date(endDate),
-            utilisation,
-          },
-          include: {
-            employee: true,
-            project: true,
-          },
-        })
-      );
-
-      return Promise.all(assignmentPromises);
+    // Create a single assignment
+    const assignment = await prisma.assignment.create({
+      data: {
+        employeeId,
+        projectId,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        utilisation,
+      },
+      include: {
+        employee: true,
+        project: true,
+      },
     });
 
-    return NextResponse.json(assignments, { status: 201 });
+    return NextResponse.json(assignment, { status: 201 });
   } catch (error: any) {
     // Check for unique constraint violation
     if (error.code === "P2002") {
       return NextResponse.json(
         {
           error:
-            "One or more employees are already assigned to this project for the given date range",
+            "Employee is already assigned to this project for the given date range",
         },
         { status: 409 }
       );
     }
 
+    console.error("Error creating assignment:", error);
     return NextResponse.json(
-      { error: "Failed to create assignments" },
+      { error: "Failed to create assignment" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET() {
+  try {
+    const assignments = await prisma.assignment.findMany({
+      include: {
+        employee: true,
+        project: true,
+      },
+      orderBy: {
+        startDate: "desc",
+      },
+    });
+    return NextResponse.json(assignments);
+  } catch (error) {
+    console.error("Failed to fetch assignments:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch assignments" },
       { status: 500 }
     );
   }

@@ -16,7 +16,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -30,6 +29,18 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Assignment, Employee, Project } from "@/types/models";
+import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function Assign() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -43,7 +54,9 @@ export default function Assign() {
     startDate: "",
     endDate: "",
   });
-  const [utilizationThreshold, setUtilizationThreshold] = useState(80);
+  const [availabilityThreshold, setAvailabilityThreshold] = useState(80);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchAssignments();
@@ -52,35 +65,89 @@ export default function Assign() {
   }, []);
 
   const fetchAssignments = async () => {
-    const response = await fetch("/api/assignments");
-    const data: Assignment[] = await response.json();
-    setAssignments(data);
+    try {
+      const response = await fetch("/api/assignments");
+      if (!response.ok) throw new Error("Failed to fetch assignments");
+      const data = await response.json();
+      setAssignments(data);
+    } catch (error) {
+      console.error("Error fetching assignments:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch assignments. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const fetchEmployees = async () => {
-    const response = await fetch("/api/employees");
-    const data: Employee[] = await response.json();
-    setEmployees(data);
+    try {
+      const response = await fetch("/api/employees");
+      if (!response.ok) throw new Error("Failed to fetch employees");
+      const data = await response.json();
+      setEmployees(data || []);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch employees. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const fetchProjects = async () => {
-    const response = await fetch("/api/projects");
-    const data: Project[] = await response.json();
-    setProjects(data);
+    try {
+      const response = await fetch("/api/projects");
+      if (!response.ok) throw new Error("Failed to fetch projects");
+      const data = await response.json();
+      setProjects(data);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch projects. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCreateAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingAssignment) {
-      const response = await fetch("/api/assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingAssignment),
-      });
-      if (response.ok) {
-        fetchAssignments();
+    if (editingAssignment && selectedEmployee) {
+      try {
+        const response = await fetch("/api/assignments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...editingAssignment,
+            employeeId: parseInt(selectedEmployee, 10),
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to create assignment");
+        }
+
+        await fetchAssignments();
         setEditingAssignment(null);
         setIsEditDialogOpen(false);
+        setSelectedEmployee("");
+        toast({
+          title: "Success",
+          description: "Assignment created successfully.",
+        });
+      } catch (error) {
+        console.error("Error creating assignment:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to create assignment. Please try again.",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -88,16 +155,70 @@ export default function Assign() {
   const handleUpdateAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingAssignment && editingAssignment.id) {
-      const response = await fetch(`/api/assignments/${editingAssignment.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingAssignment),
-      });
-      if (response.ok) {
-        fetchAssignments();
+      try {
+        const response = await fetch(
+          `/api/assignments/${editingAssignment.id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...editingAssignment,
+              employeeId: parseInt(selectedEmployee, 10),
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to update assignment");
+        }
+
+        await fetchAssignments();
         setEditingAssignment(null);
+        setSelectedEmployee("");
         setIsEditDialogOpen(false);
+        toast({
+          title: "Success",
+          description: "Assignment updated successfully.",
+        });
+      } catch (error) {
+        console.error("Error updating assignment:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to update assignment. Please try again.",
+          variant: "destructive",
+        });
       }
+    }
+  };
+
+  const handleDeleteAssignment = async (assignmentId: number) => {
+    try {
+      const response = await fetch(`/api/assignments/${assignmentId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete assignment");
+      }
+      await fetchAssignments();
+      toast({
+        title: "Success",
+        description: "Assignment deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting assignment:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete assignment. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -106,30 +227,82 @@ export default function Assign() {
       assignment
         ? { ...assignment }
         : {
-            employeeId: 0,
             projectId: 0,
             startDate: "",
             endDate: "",
             utilisation: 100,
           }
     );
+    setSelectedEmployee(assignment ? assignment.employee.id.toString() : "");
     setIsEditDialogOpen(true);
   };
 
   const fetchAvailableEmployees = async () => {
-    const response = await fetch(
-      `/api/employees/available?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&utilizationThreshold=${utilizationThreshold}`
-    );
-    const data: Employee[] = await response.json();
-    setAvailableEmployees(data);
+    if (!dateRange.startDate || !dateRange.endDate) {
+      toast({
+        title: "Error",
+        description: "Please select both start and end dates.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/employees/available?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&availabilityThreshold=${availabilityThreshold}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch available employees");
+      const data = await response.json();
+      setAvailableEmployees(data);
+    } catch (error) {
+      console.error("Error fetching available employees:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch available employees. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  const filteredAssignments = assignments.filter((assignment) => {
+    const searchTerm = searchQuery.toLowerCase();
+    return (
+      assignment.employee.name.toLowerCase().includes(searchTerm) ||
+      assignment.project.name.toLowerCase().includes(searchTerm)
+    );
+  });
 
   return (
     <Layout>
       <h1 className="text-3xl font-bold mb-6">Assign Employees</h1>
-      <div className="mb-4">
-        <Button onClick={() => openEditDialog()}>Create Assignment</Button>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-4">
+          <Button onClick={() => openEditDialog()}>Create Assignment</Button>
+          <div className="relative w-64">
+            <Input
+              type="text"
+              placeholder="Search by employee or project..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+            <svg
+              className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+        </div>
       </div>
+
       <Table>
         <TableHeader>
           <DataTableRow>
@@ -142,22 +315,62 @@ export default function Assign() {
           </DataTableRow>
         </TableHeader>
         <DataTableBody>
-          {assignments.map((assignment) => (
-            <DataTableRow key={assignment.id}>
-              <TableCell>{assignment.employee.name}</TableCell>
-              <TableCell>{assignment.project.name}</TableCell>
-              <TableCell>
-                {new Date(assignment.startDate).toLocaleDateString()}
-              </TableCell>
-              <TableCell>
-                {new Date(assignment.endDate).toLocaleDateString()}
-              </TableCell>
-              <TableCell>{assignment.utilisation}%</TableCell>
-              <TableCell>
-                <Button onClick={() => openEditDialog(assignment)}>Edit</Button>
+          {filteredAssignments.length === 0 ? (
+            <DataTableRow>
+              <TableCell colSpan={6} className="text-center py-4">
+                {searchQuery
+                  ? "No assignments found matching your search."
+                  : "No assignments available."}
               </TableCell>
             </DataTableRow>
-          ))}
+          ) : (
+            filteredAssignments.map((assignment) => (
+              <DataTableRow key={assignment.id}>
+                <TableCell>{assignment.employee.name}</TableCell>
+                <TableCell>{assignment.project.name}</TableCell>
+                <TableCell>
+                  {new Date(assignment.startDate).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  {new Date(assignment.endDate).toLocaleDateString()}
+                </TableCell>
+                <TableCell>{assignment.utilisation}%</TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Button onClick={() => openEditDialog(assignment)}>
+                      Edit
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive">Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Are you absolutely sure?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently
+                            delete the assignment.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() =>
+                              handleDeleteAssignment(assignment.id)
+                            }
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              </DataTableRow>
+            ))
+          )}
         </DataTableBody>
       </Table>
 
@@ -192,22 +405,23 @@ export default function Assign() {
               </div>
             </div>
             <div>
-              <Label htmlFor="utilizationThreshold">
-                Minimum Available Utilization: {100 - utilizationThreshold}%
+              <Label htmlFor="availabilityThreshold">
+                Minimum Available Utilization: {availabilityThreshold}%
               </Label>
               <Slider
-                id="utilizationThreshold"
+                id="availabilityThreshold"
                 min={0}
                 max={100}
                 step={5}
-                value={[utilizationThreshold]}
-                onValueChange={(value) => setUtilizationThreshold(value[0])}
+                value={[availabilityThreshold]}
+                onValueChange={(value) => setAvailabilityThreshold(value[0])}
               />
             </div>
             <Button onClick={fetchAvailableEmployees}>
               Find Available Employees
             </Button>
           </div>
+
           <Table>
             <TableHeader>
               <DataTableRow>
@@ -257,13 +471,8 @@ export default function Assign() {
             <div>
               <Label htmlFor="employee">Employee</Label>
               <Select
-                value={editingAssignment?.employeeId?.toString() || ""}
-                onValueChange={(value) =>
-                  setEditingAssignment((prev) => ({
-                    ...prev,
-                    employeeId: parseInt(value, 10),
-                  }))
-                }
+                value={selectedEmployee}
+                onValueChange={setSelectedEmployee}
                 required
               >
                 <SelectTrigger>
@@ -297,7 +506,7 @@ export default function Assign() {
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project) => (
+                  {projects?.map((project) => (
                     <SelectItem key={project.id} value={project.id.toString()}>
                       {project.name}
                     </SelectItem>
