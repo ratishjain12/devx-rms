@@ -55,9 +55,8 @@ export default function Projects() {
       const response = await fetch(
         `/api/projects?q=${searchQuery}&status=${status}`
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch projects");
-      }
+      if (!response.ok) throw new Error("Failed to fetch projects");
+
       const data: Project[] = await response.json();
       setProjects(data);
     } catch (error) {
@@ -81,31 +80,14 @@ export default function Projects() {
     try {
       if (!editingProject) return;
       const { assignments, ...projectData } = editingProject;
+
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(projectData),
       });
 
-      const responseText = await response.text();
-      console.log("Raw server response:", responseText); // Log the raw response
-
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (jsonError) {
-        console.error(
-          "Error parsing JSON:",
-          jsonError,
-          "Response text:",
-          responseText
-        );
-        throw new Error("Invalid response from server");
-      }
-
-      if (!response.ok) {
-        throw new Error(responseData.error || "Failed to create project");
-      }
+      if (!response.ok) throw new Error("Failed to create project");
 
       await fetchProjects();
       setEditingProject(null);
@@ -114,14 +96,11 @@ export default function Projects() {
         title: "Success",
         description: "Project created successfully.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating project:", error);
       toast({
         title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to create project. Please try again.",
+        description: error.message || "Failed to create project.",
         variant: "destructive",
       });
     }
@@ -131,15 +110,17 @@ export default function Projects() {
     e.preventDefault();
     try {
       if (!editingProject || !editingProject.id) return;
+
       const { assignments, ...projectData } = editingProject;
-      const response = await fetch(`/api/projects/${editingProject.id}`, {
+
+      const response = await fetch(`/api/projects?id=${editingProject.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(projectData),
       });
-      if (!response.ok) {
-        throw new Error("Failed to update project");
-      }
+
+      if (!response.ok) throw new Error("Failed to update project");
+
       await fetchProjects();
       setEditingProject(null);
       setIsEditDialogOpen(false);
@@ -151,7 +132,30 @@ export default function Projects() {
       console.error("Error updating project:", error);
       toast({
         title: "Error",
-        description: "Failed to update project. Please try again.",
+        description: "Failed to update project.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteProject = async (projectId: number) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Failed to delete project");
+
+      await fetchProjects();
+      toast({
+        title: "Success",
+        description: "Project deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete project.",
         variant: "destructive",
       });
     }
@@ -163,7 +167,7 @@ export default function Projects() {
         ? {
             ...project,
             tools: [...project.tools],
-            startDate: project.startDate.split("T")[0], // Format date for input
+            startDate: project.startDate.split("T")[0],
             endDate: project.endDate ? project.endDate.split("T")[0] : null,
           }
         : {
@@ -237,7 +241,15 @@ export default function Projects() {
                     .join(", ")}
               </TableCell>
               <TableCell>
-                <Button onClick={() => openEditDialog(project)}>Edit</Button>
+                <div className="flex space-x-2">
+                  <Button onClick={() => openEditDialog(project)}>Edit</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleDeleteProject(project.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
               </TableCell>
             </DataTableRow>
           ))}
