@@ -27,36 +27,66 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Employee, Assignment } from "@/types/models";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useDebounce } from "@/hooks/use-debounce";
 
-interface EditingEmployee extends Omit<Employee, "id" | "assignments"> {
-  id?: number;
-  assignments?: Assignment[];
+type Assignment = {
+  project: {
+    name: string;
+  };
+};
+
+interface Employee {
+  id: number;
+  name: string;
+  seniority: "JUNIOR" | "INTERN" | "SENIOR";
+  skills: string[];
+  assignments: Assignment[];
 }
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [seniority, setSeniority] = useState("");
-  const [editingEmployee, setEditingEmployee] =
-    useState<EditingEmployee | null>(null);
+  const [seniority, setSeniority] = useState<string>("ALL");
+  const [editingEmployee, setEditingEmployee] = useState<
+    Partial<Employee> | any
+  >(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Debounced search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [debouncedSearchQuery, seniority]);
 
   const fetchEmployees = async () => {
     setIsLoading(true);
     try {
+      const queryParams = new URLSearchParams();
+      if (debouncedSearchQuery.trim())
+        queryParams.append("q", debouncedSearchQuery.trim());
+      if (seniority && seniority !== "ALL")
+        queryParams.append("seniority", seniority);
+
       const response = await fetch(
-        `/api/employees/search?q=${searchQuery}&seniority=${seniority}`
+        `/api/employees/search?${queryParams.toString()}`
       );
       if (!response.ok) {
         throw new Error("Failed to fetch employees");
       }
-      const data: Employee[] = await response.json();
+      const data = await response.json();
       setEmployees(data);
     } catch (error) {
       console.error("Error fetching employees:", error);
@@ -70,8 +100,12 @@ export default function Employees() {
     }
   };
 
-  const handleSearch = () => {
-    fetchEmployees();
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSeniorityChange = (value: string) => {
+    setSeniority(value);
   };
 
   const handleCreateEmployee = async (e: React.FormEvent) => {
@@ -104,19 +138,32 @@ export default function Employees() {
     }
   };
 
-  const handleUpdateEmployee = async (e: React.FormEvent) => {
+  const handleUpdateEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!editingEmployee?.id) return;
+
     try {
-      if (!editingEmployee || !editingEmployee.id) return;
-      const { assignments, ...employeeData } = editingEmployee;
+      const skills =
+        typeof editingEmployee.skills === "string"
+          ? editingEmployee.skills.split(",").map((s: any) => s.trim())
+          : editingEmployee.skills || [];
+
+      const employeeData = {
+        name: editingEmployee.name,
+        seniority: editingEmployee.seniority,
+        skills,
+      };
+
       const response = await fetch(`/api/employees/${editingEmployee.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(employeeData),
       });
+
       if (!response.ok) {
         throw new Error("Failed to update employee");
       }
+
       await fetchEmployees();
       setEditingEmployee(null);
       setIsEditDialogOpen(false);
@@ -135,15 +182,46 @@ export default function Employees() {
   };
 
   const openEditDialog = (employee: Employee | null = null) => {
-    setEditingEmployee(
-      employee
-        ? {
-            ...employee,
-            skills: [...employee.skills], // Create a new array to avoid mutating the original
-          }
-        : { name: "", seniority: "", skills: [], assignments: [] }
-    );
+    if (employee) {
+      setEditingEmployee({
+        ...employee,
+        skills: employee.skills || [],
+      });
+    } else {
+      setEditingEmployee({
+        name: "",
+        seniority: "JUNIOR" as const,
+        skills: [],
+      });
+    }
     setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteEmployee = async (employeeId: number) => {
+    try {
+      const response = await fetch(`/api/employees/${employeeId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete employee");
+      }
+      await fetchEmployees();
+      toast({
+        title: "Success",
+        description: "Employee deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete employee. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -153,22 +231,19 @@ export default function Employees() {
         <Input
           placeholder="Search employees..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={handleSearchInputChange}
         />
-        <Select value={seniority} onValueChange={setSeniority}>
+        <Select value={seniority} onValueChange={handleSeniorityChange}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Seniority" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All</SelectItem>
+            <SelectItem value="INTERN">Intern</SelectItem>
             <SelectItem value="JUNIOR">Junior</SelectItem>
-            <SelectItem value="MID">Mid</SelectItem>
             <SelectItem value="SENIOR">Senior</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={handleSearch} disabled={isLoading}>
-          {isLoading ? "Searching..." : "Search"}
-        </Button>
         <Button onClick={() => openEditDialog()}>Add Employee</Button>
       </div>
       <Table>
@@ -188,13 +263,40 @@ export default function Employees() {
               <TableCell>{employee.seniority}</TableCell>
               <TableCell>{employee.skills.join(", ")}</TableCell>
               <TableCell>
-                {employee.assignments && employee.assignments.length > 0
+                {employee.assignments.length > 0
                   ? employee.assignments[employee.assignments.length - 1]
                       .project.name
                   : "Not Assigned"}
               </TableCell>
               <TableCell>
-                <Button onClick={() => openEditDialog(employee)}>Edit</Button>
+                <div className="flex space-x-2">
+                  <Button onClick={() => openEditDialog(employee)}>Edit</Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">Delete</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently
+                          delete the employee and remove all associated data
+                          from our servers.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteEmployee(employee.id)}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </TableCell>
             </DataTableRow>
           ))}
@@ -218,11 +320,11 @@ export default function Employees() {
               <Input
                 id="name"
                 value={editingEmployee?.name || ""}
-                onChange={(e) =>
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setEditingEmployee({
                     ...editingEmployee,
                     name: e.target.value,
-                  } as EditingEmployee)
+                  })
                 }
                 required
               />
@@ -231,11 +333,8 @@ export default function Employees() {
               <Label htmlFor="seniority">Seniority</Label>
               <Select
                 value={editingEmployee?.seniority || ""}
-                onValueChange={(value) =>
-                  setEditingEmployee({
-                    ...editingEmployee,
-                    seniority: value,
-                  } as EditingEmployee)
+                onValueChange={(value: "JUNIOR" | "INTERN" | "SENIOR") =>
+                  setEditingEmployee({ ...editingEmployee, seniority: value })
                 }
                 required
               >
@@ -244,7 +343,7 @@ export default function Employees() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="JUNIOR">Junior</SelectItem>
-                  <SelectItem value="MID">Mid</SelectItem>
+                  <SelectItem value="INTERN">Intern</SelectItem>
                   <SelectItem value="SENIOR">Senior</SelectItem>
                 </SelectContent>
               </Select>
@@ -253,12 +352,18 @@ export default function Employees() {
               <Label htmlFor="skills">Skills (comma-separated)</Label>
               <Input
                 id="skills"
-                value={editingEmployee?.skills.join(", ") || ""}
-                onChange={(e) =>
+                value={
+                  Array.isArray(editingEmployee?.skills)
+                    ? editingEmployee?.skills.join(", ")
+                    : typeof editingEmployee?.skills === "string"
+                    ? editingEmployee?.skills
+                    : ""
+                }
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setEditingEmployee({
                     ...editingEmployee,
                     skills: e.target.value.split(",").map((s) => s.trim()),
-                  } as EditingEmployee)
+                  })
                 }
                 required
               />

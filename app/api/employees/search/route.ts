@@ -11,13 +11,17 @@ export async function GET(request: Request) {
     const employees = await prisma.employee.findMany({
       where: {
         AND: [
-          {
-            OR: [
-              { name: { contains: query, mode: "insensitive" } },
-              { skills: { has: query } },
-            ],
-          },
-          seniority ? { seniority: seniority as Seniority } : {},
+          query
+            ? {
+                OR: [
+                  { name: { contains: query, mode: "insensitive" } },
+                  { skills: { has: query } },
+                ],
+              }
+            : {}, // Skip name/skills filter if query is empty
+          seniority && seniority !== "ALL"
+            ? { seniority: seniority as Seniority }
+            : {}, // Filter by seniority unless it's "ALL"
         ],
       },
       include: {
@@ -31,6 +35,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(employees);
   } catch (error) {
+    console.error("Error searching employees:", error);
     return NextResponse.json(
       { error: "Failed to search employees" },
       { status: 500 }
