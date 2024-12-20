@@ -2,82 +2,63 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Briefcase, Calendar, TrendingUp } from "lucide-react";
+import { Users, Briefcase, Calendar } from "lucide-react";
 
 interface AnalyticsData {
-  totalEmployees: number;
-  totalProjects: number;
-  activeAssignments: number;
-  utilizationRate: number;
+  totalEmployees: number | null;
+  totalProjects: number | null;
+  activeAssignments: number | null;
 }
 
 export function AnalyticsCards() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
-    totalEmployees: 0,
-    totalProjects: 0,
-    activeAssignments: 0,
-    utilizationRate: 0,
+    totalEmployees: null,
+    totalProjects: null,
+    activeAssignments: null,
   });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const [employeesRes, projectsRes, assignmentsRes] = await Promise.all([
-          fetch("/api/employees"),
-          fetch("/api/projects"),
-          fetch("/api/assignments"),
+        const fetchWithFallback = async (url: string): Promise<any> => {
+          try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error();
+            return await response.json();
+          } catch {
+            return null;
+          }
+        };
+
+        const [employees, projects, assignments] = await Promise.all([
+          fetchWithFallback("/api/employees"),
+          fetchWithFallback("/api/projects"),
+          fetchWithFallback("/api/assignments"),
         ]);
 
-        if (!employeesRes.ok || !projectsRes.ok || !assignmentsRes.ok) {
-          throw new Error("One or more API calls failed");
-        }
-
-        const employees = await employeesRes.json();
-        const projects = await projectsRes.json();
-        const assignments = await assignmentsRes.json();
-
-        if (
-          !Array.isArray(employees) ||
-          !Array.isArray(projects) ||
-          !Array.isArray(assignments)
-        ) {
-          throw new Error("Invalid data format received from API");
-        }
-
-        const activeAssignments = assignments.filter(
-          (a: any) => new Date(a.endDate) >= new Date()
-        ).length;
-
-        const totalUtilization = assignments.reduce(
-          (sum: number, a: any) =>
-            sum + (typeof a.utilisation === "number" ? a.utilisation : 0),
-          0
-        );
+        const activeAssignments = assignments
+          ? assignments.filter((a: any) => new Date(a.endDate) >= new Date())
+              .length
+          : null;
 
         setAnalyticsData({
-          totalEmployees: employees.length,
-          totalProjects: projects.length,
+          totalEmployees: employees ? employees.length : null,
+          totalProjects: projects ? projects.length : null,
           activeAssignments,
-          utilizationRate:
-            assignments.length > 0 ? totalUtilization / assignments.length : 0,
         });
         setError(null);
       } catch (error) {
         console.error("Error fetching analytics data:", error);
-        setError("Failed to load analytics data. Please try again later.");
+        setError("Failed to load some analytics data.");
       }
     };
 
     fetchAnalytics();
   }, []);
 
-  if (error) {
-    return <div className="text-red-500">{error}</div>;
-  }
-
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
@@ -85,7 +66,9 @@ export function AnalyticsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {analyticsData.totalEmployees}
+            {analyticsData.totalEmployees !== null
+              ? analyticsData.totalEmployees
+              : "No data found"}
           </div>
         </CardContent>
       </Card>
@@ -96,7 +79,9 @@ export function AnalyticsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {analyticsData.totalProjects}
+            {analyticsData.totalProjects !== null
+              ? analyticsData.totalProjects
+              : "No data found"}
           </div>
         </CardContent>
       </Card>
@@ -109,20 +94,9 @@ export function AnalyticsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {analyticsData.activeAssignments}
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Avg. Utilization Rate
-          </CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {(analyticsData.utilizationRate * 100).toFixed(1)}%
+            {analyticsData.activeAssignments !== null
+              ? analyticsData.activeAssignments
+              : "No data found"}
           </div>
         </CardContent>
       </Card>

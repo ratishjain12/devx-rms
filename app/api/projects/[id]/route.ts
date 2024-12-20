@@ -8,15 +8,21 @@ export async function DELETE(
   try {
     const id = parseInt(params.id);
 
+    // First, delete all assignments associated with the project
+    await prisma.assignment.deleteMany({
+      where: { projectId: id },
+    });
+
+    // Then, delete the project
     await prisma.project.delete({
       where: { id: id },
     });
 
-    return NextResponse.json({ message: "deleted project successfully" });
+    return NextResponse.json({ message: "Deleted project successfully" });
   } catch (error) {
-    console.error("Failed to delete employee:", error);
+    console.error("Failed to delete project and its assignments:", error);
     return NextResponse.json(
-      { error: "Failed to delete employee" },
+      { error: "Failed to delete project" },
       { status: 500 }
     );
   }
