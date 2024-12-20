@@ -39,20 +39,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
-
-type Assignment = {
-  project: {
-    name: string;
-  };
-};
-
-interface Employee {
-  id: number;
-  name: string;
-  seniority: "JUNIOR" | "INTERN" | "SENIOR";
-  skills: string[];
-  assignments: Assignment[];
-}
+import { Employee } from "@/types/types";
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
