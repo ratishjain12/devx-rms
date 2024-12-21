@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Layout from "@/components/layout";
 import {
   Table,
   TableHeader,
@@ -273,7 +272,7 @@ export default function Assign() {
   });
 
   return (
-    <Layout>
+    <div>
       <h1 className="text-3xl font-bold mb-6">Assign Employees</h1>
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">
@@ -569,6 +568,6 @@ export default function Assign() {
           </form>
         </DialogContent>
       </Dialog>
-    </Layout>
+    </div>
   );
 }

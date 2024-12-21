@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Layout from "@/components/layout";
 import {
   Table,
   TableHeader,
@@ -212,7 +211,7 @@ export default function Employees() {
   };
 
   return (
-    <Layout>
+    <div className="px-4">
       <h1 className="text-3xl font-bold mb-6">Employees</h1>
       <div className="mb-4 flex space-x-4">
         <Input
@@ -361,6 +360,6 @@ export default function Employees() {
           </form>
         </DialogContent>
       </Dialog>
-    </Layout>
+    </div>
   );
 }
