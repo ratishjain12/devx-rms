@@ -37,6 +37,11 @@ const data = {
       url: "/views",
       items: [],
     },
+    {
+      title: "Settings",
+      url: "/settings",
+      items: [],
+    },
     // {
     //   title: "Building Your Application",
     //   url: "#",

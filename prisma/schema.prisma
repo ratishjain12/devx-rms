@@ -46,6 +46,21 @@ model Assignment {
   @@unique([employeeId, projectId, startDate]) // Ensure unique assignments
 }
 
+model Role {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
+model Skill {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
+model Type {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
 // Enums for specific field constraints
 enum Seniority {
   SENIOR
