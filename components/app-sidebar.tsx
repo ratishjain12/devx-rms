@@ -38,6 +38,11 @@ const data = {
       items: [],
     },
     {
+      title: "Reports",
+      url: "/reports",
+      items: [],
+    },
+    {
       title: "Settings",
       url: "/settings",
       items: [],

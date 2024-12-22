@@ -14,7 +14,7 @@ model Employee {
   name       String
   seniority  Seniority
   skills     String[] // Array of skills as strings
-
+  roles String[]
   // Relations
   assignments Assignment[]
 }
@@ -54,7 +54,7 @@ model Role {
 model Skill {
   id   Int    @id @default(autoincrement())
   name String @unique
-}
+} 
 
 model Type {
   id   Int    @id @default(autoincrement())

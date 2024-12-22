@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RolesSection } from "@/components/settings/RolesSection";
 import { SkillsSection } from "@/components/settings/SkillsSection";
-import { TypesSection } from "@/components/settings/JobTypeSection";
+import { TypesSection } from "@/components/settings/TypeSection";
 
 export default function SettingsPage() {
   return (

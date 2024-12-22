@@ -6,7 +6,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id);
+    const data = await params;
+    const id = parseInt(data.id);
 
     const deletedAssignment = await prisma.assignment.delete({
       where: { id },
@@ -26,7 +27,8 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const data = await params;
+    const id = parseInt(data.id, 10);
     const body = await request.json();
     const { employeeId, projectId, startDate, endDate, utilisation } = body;
 

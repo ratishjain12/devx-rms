@@ -3,22 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Briefcase, Calendar, AlertTriangle } from "lucide-react";
-import { Employee } from "@/types/types";
-
-interface OverworkedEmployee {
-  employee: Employee;
-  utilization: number;
-}
-
-// Types for analytics data
-interface AnalyticsData {
-  totalEmployees: number | null;
-  totalProjects: number | null;
-  activeAssignments: number | null;
-  totalOverlaps: number | null;
-  topOverlappingEmployees: { name: string; overlaps: number }[] | null;
-  overworkedEmployees: OverworkedEmployee[] | null;
-}
+import { AnalyticsData } from "@/types/types";
 
 export function AnalyticsCards() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({

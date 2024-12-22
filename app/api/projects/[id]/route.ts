@@ -6,7 +6,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = parseInt(params.id);
+    const data = await params;
+    const id = parseInt(data.id);
 
     // First, delete all assignments associated with the project
     await prisma.assignment.deleteMany({

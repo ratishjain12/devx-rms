@@ -38,24 +38,63 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
-import { Employee } from "@/types/types";
+import { Employee, Skill, Role } from "@/types/types";
+import { Seniority } from "@prisma/client";
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [seniority, setSeniority] = useState<string>("ALL");
-  const [editingEmployee, setEditingEmployee] = useState<
-    Partial<Employee> | any
-  >(null);
+  const [selectedSeniority, setSelectedSeniority] = useState<string>("ALL");
+  const [selectedSkill, setSelectedSkill] = useState<string>("ALL");
+  const [selectedRole, setSelectedRole] = useState<string>("ALL");
+  const [editingEmployee, setEditingEmployee] =
+    useState<Partial<Employee> | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
-  // Debounced search query
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     fetchEmployees();
-  }, [debouncedSearchQuery, seniority]);
+    fetchSkills();
+    fetchRoles();
+  }, [debouncedSearchQuery, selectedSeniority, selectedSkill, selectedRole]);
+
+  const fetchSkills = async () => {
+    try {
+      const response = await fetch("/api/skills");
+      if (!response.ok) throw new Error("Failed to fetch skills");
+      const data = await response.json();
+      setSkills(data);
+    } catch (error) {
+      console.error("Error fetching skills:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch skills",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch("/api/roles");
+      if (!response.ok) throw new Error("Failed to fetch roles");
+      const data = await response.json();
+      setRoles(data);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch roles",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchEmployees = async () => {
     setIsLoading(true);
@@ -63,22 +102,22 @@ export default function Employees() {
       const queryParams = new URLSearchParams();
       if (debouncedSearchQuery.trim())
         queryParams.append("q", debouncedSearchQuery.trim());
-      if (seniority && seniority !== "ALL")
-        queryParams.append("seniority", seniority);
+      if (selectedSeniority !== "ALL")
+        queryParams.append("seniority", selectedSeniority);
+      if (selectedSkill !== "ALL") queryParams.append("skill", selectedSkill);
+      if (selectedRole !== "ALL") queryParams.append("role", selectedRole);
 
       const response = await fetch(
         `/api/employees/search?${queryParams.toString()}`
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch employees");
-      }
+      if (!response.ok) throw new Error("Failed to fetch employees");
       const data = await response.json();
       setEmployees(data);
     } catch (error) {
       console.error("Error fetching employees:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch employees. Please try again.",
+        description: "Failed to fetch employees",
         variant: "destructive",
       });
     } finally {
@@ -86,125 +125,52 @@ export default function Employees() {
     }
   };
 
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const handleSeniorityChange = (value: string) => {
-    setSeniority(value);
-  };
-
-  const handleCreateEmployee = async (e: React.FormEvent) => {
+  const handleCreateOrUpdateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      if (!editingEmployee) return;
-      const { assignments, ...employeeData } = editingEmployee;
-      const response = await fetch("/api/employees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(employeeData),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to create employee");
-      }
-      await fetchEmployees();
-      setEditingEmployee(null);
-      setIsEditDialogOpen(false);
-      toast({
-        title: "Success",
-        description: "Employee created successfully.",
-      });
-    } catch (error) {
-      console.error("Error creating employee:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create employee. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+    if (!editingEmployee) return;
 
-  const handleUpdateEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!editingEmployee?.id) return;
+    const isUpdate = !!editingEmployee.id;
+    const endpoint = isUpdate
+      ? `/api/employees/${editingEmployee.id}`
+      : "/api/employees";
+    const method = isUpdate ? "PUT" : "POST";
 
     try {
-      const skills =
-        typeof editingEmployee.skills === "string"
-          ? editingEmployee.skills.split(",").map((s: any) => s.trim())
-          : editingEmployee.skills || [];
-
-      const employeeData = {
-        name: editingEmployee.name,
-        seniority: editingEmployee.seniority,
-        skills,
-      };
-
-      const response = await fetch(`/api/employees/${editingEmployee.id}`, {
-        method: "PUT",
+      const response = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(employeeData),
+        body: JSON.stringify({
+          ...editingEmployee,
+          skills: selectedSkills,
+          roles: selectedRoles,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update employee");
+        throw new Error(
+          isUpdate ? "Failed to update employee" : "Failed to create employee"
+        );
       }
 
       await fetchEmployees();
       setEditingEmployee(null);
+      setSelectedSkills([]);
+      setSelectedRoles([]);
       setIsEditDialogOpen(false);
+
       toast({
         title: "Success",
-        description: "Employee updated successfully.",
+        description: isUpdate
+          ? "Employee updated successfully"
+          : "Employee created successfully",
       });
     } catch (error) {
-      console.error("Error updating employee:", error);
+      console.error("Error:", error);
       toast({
         title: "Error",
-        description: "Failed to update employee. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const openEditDialog = (employee: Employee | null = null) => {
-    if (employee) {
-      setEditingEmployee({
-        ...employee,
-        skills: employee.skills || [],
-      });
-    } else {
-      setEditingEmployee({
-        name: "",
-        seniority: "JUNIOR" as const,
-        skills: [],
-      });
-    }
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDeleteEmployee = async (employeeId: number) => {
-    try {
-      const response = await fetch(`/api/employees/${employeeId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to delete employee");
-      }
-      await fetchEmployees();
-      toast({
-        title: "Success",
-        description: "Employee deleted successfully.",
-      });
-    } catch (error) {
-      console.error("Error deleting employee:", error);
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete employee. Please try again.",
+        description: isUpdate
+          ? "Failed to update employee"
+          : "Failed to create employee",
         variant: "destructive",
       });
     }
@@ -217,28 +183,64 @@ export default function Employees() {
         <Input
           placeholder="Search employees..."
           value={searchQuery}
-          onChange={handleSearchInputChange}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <Select value={seniority} onValueChange={handleSeniorityChange}>
+        <Select value={selectedSeniority} onValueChange={setSelectedSeniority}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Seniority" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All</SelectItem>
+            <SelectItem value="ALL">All Seniority</SelectItem>
             <SelectItem value="INTERN">Intern</SelectItem>
             <SelectItem value="JUNIOR">Junior</SelectItem>
             <SelectItem value="SENIOR">Senior</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => openEditDialog()}>Add Employee</Button>
+        <Select value={selectedSkill} onValueChange={setSelectedSkill}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by Skill" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Skills</SelectItem>
+            {skills.map((skill) => (
+              <SelectItem key={skill.id} value={skill.name}>
+                {skill.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedRole} onValueChange={setSelectedRole}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by Role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Roles</SelectItem>
+            {roles.map((role) => (
+              <SelectItem key={role.id} value={role.name}>
+                {role.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          onClick={() => {
+            setEditingEmployee({ name: "", seniority: "JUNIOR" });
+            setSelectedSkills([]);
+            setSelectedRoles([]);
+            setIsEditDialogOpen(true);
+          }}
+        >
+          Add Employee
+        </Button>
       </div>
       <Table>
         <TableHeader>
           <DataTableRow>
             <TableHead>Name</TableHead>
             <TableHead>Seniority</TableHead>
-            <TableHead>Skills</TableHead>
             <TableHead>Current Project</TableHead>
+            <TableHead>Roles</TableHead> {/* Add Roles column */}
+            <TableHead>Skills</TableHead> {/* Add Skills column */}
             <TableHead>Actions</TableHead>
           </DataTableRow>
         </TableHeader>
@@ -247,16 +249,34 @@ export default function Employees() {
             <DataTableRow key={employee.id}>
               <TableCell>{employee.name}</TableCell>
               <TableCell>{employee.seniority}</TableCell>
-              <TableCell>{employee.skills.join(", ")}</TableCell>
               <TableCell>
-                {employee.assignments.length > 0
+                {employee.assignments?.length
                   ? employee.assignments[employee.assignments.length - 1]
                       .project.name
                   : "Not Assigned"}
               </TableCell>
               <TableCell>
+                {employee.roles && employee.roles.length > 0
+                  ? employee.roles.join(", ") // Join roles with comma if there are multiple
+                  : "No Roles"}
+              </TableCell>
+              <TableCell>
+                {employee.skills && employee.skills.length > 0
+                  ? employee.skills.join(", ") // Join skills with comma if there are multiple
+                  : "No Skills"}
+              </TableCell>
+              <TableCell>
                 <div className="flex space-x-2">
-                  <Button onClick={() => openEditDialog(employee)}>Edit</Button>
+                  <Button
+                    onClick={() => {
+                      setEditingEmployee(employee);
+                      setSelectedSkills(employee.skills ?? []);
+                      setSelectedRoles(employee.roles ?? []);
+                      setIsEditDialogOpen(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive">Delete</Button>
@@ -267,15 +287,34 @@ export default function Employees() {
                           Are you absolutely sure?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                          This action cannot be undone. This will permanently
-                          delete the employee and remove all associated data
-                          from our servers.
+                          This action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => handleDeleteEmployee(employee.id)}
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(
+                                `/api/employees/${employee.id}`,
+                                { method: "DELETE" }
+                              );
+                              if (!response.ok)
+                                throw new Error("Failed to delete employee");
+                              await fetchEmployees();
+                              toast({
+                                title: "Success",
+                                description: "Employee deleted successfully",
+                              });
+                            } catch (error) {
+                              console.error("Error deleting employee:", error);
+                              toast({
+                                title: "Error",
+                                description: "Failed to delete employee",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
                         >
                           Delete
                         </AlertDialogAction>
@@ -288,75 +327,110 @@ export default function Employees() {
           ))}
         </DataTableBody>
       </Table>
+
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingEmployee?.id ? "Edit Employee" : "Add New Employee"}
+              {editingEmployee?.id ? "Edit Employee" : "Add Employee"}
             </DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={
-              editingEmployee?.id ? handleUpdateEmployee : handleCreateEmployee
-            }
-            className="space-y-4"
-          >
-            <div>
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={editingEmployee?.name || ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setEditingEmployee({
-                    ...editingEmployee,
-                    name: e.target.value,
-                  })
-                }
-                required
-              />
+          <form onSubmit={handleCreateOrUpdateEmployee}>
+            <div className="space-y-4">
+              <div>
+                <Label>Name</Label>
+                <Input
+                  value={editingEmployee?.name || ""}
+                  onChange={(e) =>
+                    setEditingEmployee({
+                      ...editingEmployee!,
+                      name: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label>Seniority</Label>
+                <Select
+                  value={editingEmployee?.seniority || "JUNIOR"}
+                  onValueChange={(value) =>
+                    setEditingEmployee({
+                      ...editingEmployee!,
+                      seniority: value as Seniority,
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seniority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INTERN">Intern</SelectItem>
+                    <SelectItem value="JUNIOR">Junior</SelectItem>
+                    <SelectItem value="SENIOR">Senior</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Skills</Label>
+                <div className="border rounded-md p-2">
+                  {skills.map((skill) => (
+                    <div key={skill.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`skill-${skill.id}`}
+                        value={skill.name}
+                        checked={selectedSkills.includes(skill.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedSkills((prev) => [...prev, skill.name]);
+                          } else {
+                            setSelectedSkills((prev) =>
+                              prev.filter((selected) => selected !== skill.name)
+                            );
+                          }
+                        }}
+                      />
+                      <label htmlFor={`skill-${skill.id}`} className="text-sm">
+                        {skill.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>Roles</Label>
+                <div className="border rounded-md p-2">
+                  {roles.map((role) => (
+                    <div key={role.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`role-${role.id}`}
+                        value={role.name}
+                        checked={selectedRoles.includes(role.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedRoles((prev) => [...prev, role.name]);
+                          } else {
+                            setSelectedRoles((prev) =>
+                              prev.filter((selected) => selected !== role.name)
+                            );
+                          }
+                        }}
+                      />
+                      <label htmlFor={`role-${role.id}`} className="text-sm">
+                        {role.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="seniority">Seniority</Label>
-              <Select
-                value={editingEmployee?.seniority || ""}
-                onValueChange={(value: "JUNIOR" | "INTERN" | "SENIOR") =>
-                  setEditingEmployee({ ...editingEmployee, seniority: value })
-                }
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select seniority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="JUNIOR">Junior</SelectItem>
-                  <SelectItem value="INTERN">Intern</SelectItem>
-                  <SelectItem value="SENIOR">Senior</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex justify-end mt-4">
+              <Button type="submit">
+                {editingEmployee?.id ? "Update" : "Create"}
+              </Button>
             </div>
-            <div>
-              <Label htmlFor="skills">Skills (comma-separated)</Label>
-              <Input
-                id="skills"
-                value={
-                  Array.isArray(editingEmployee?.skills)
-                    ? editingEmployee?.skills.join(", ")
-                    : typeof editingEmployee?.skills === "string"
-                    ? editingEmployee?.skills
-                    : ""
-                }
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setEditingEmployee({
-                    ...editingEmployee,
-                    skills: e.target.value.split(",").map((s) => s.trim()),
-                  })
-                }
-                required
-              />
-            </div>
-            <Button type="submit">
-              {editingEmployee?.id ? "Update Employee" : "Create Employee"}
-            </Button>
           </form>
         </DialogContent>
       </Dialog>

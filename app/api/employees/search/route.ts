@@ -5,8 +5,10 @@ import { Seniority } from "@prisma/client";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q") || "";
-    const seniority = searchParams.get("seniority");
+    const query = searchParams.get("q") || ""; // General search query
+    const seniority = searchParams.get("seniority"); // Filter by seniority
+    const skill = searchParams.get("skill"); // Filter by skill
+    const role = searchParams.get("role"); // Filter by role
 
     const employees = await prisma.employee.findMany({
       where: {
@@ -15,13 +17,16 @@ export async function GET(request: Request) {
             ? {
                 OR: [
                   { name: { contains: query, mode: "insensitive" } },
-                  { skills: { has: query } },
+                  { skills: { has: query } }, // Filter by skill name
+                  { roles: { has: query } }, // Filter by role name
                 ],
               }
-            : {}, // Skip name/skills filter if query is empty
+            : {},
           seniority && seniority !== "ALL"
             ? { seniority: seniority as Seniority }
-            : {}, // Filter by seniority unless it's "ALL"
+            : {},
+          skill && skill !== "ALL" ? { skills: { has: skill } } : {},
+          role && role !== "ALL" ? { roles: { has: role } } : {},
         ],
       },
       include: {
