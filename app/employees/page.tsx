@@ -176,6 +176,14 @@ export default function Employees() {
     }
   };
 
+  const renderLoadingState = () => (
+    <tr>
+      <td colSpan={7} className="text-center">
+        Loading...
+      </td>
+    </tr>
+  );
+
   return (
     <div className="px-4">
       <h1 className="text-3xl font-bold mb-6">Employees</h1>
@@ -239,95 +247,102 @@ export default function Employees() {
             <TableHead>Name</TableHead>
             <TableHead>Seniority</TableHead>
             <TableHead>Current Project</TableHead>
-            <TableHead>Roles</TableHead> {/* Add Roles column */}
-            <TableHead>Skills</TableHead> {/* Add Skills column */}
+            <TableHead>Roles</TableHead>
+            <TableHead>Skills</TableHead>
             <TableHead>Actions</TableHead>
           </DataTableRow>
         </TableHeader>
         <DataTableBody>
-          {employees.map((employee) => (
-            <DataTableRow key={employee.id}>
-              <TableCell>{employee.name}</TableCell>
-              <TableCell>{employee.seniority}</TableCell>
-              <TableCell>
-                {employee.assignments?.length
-                  ? employee.assignments[employee.assignments.length - 1]
-                      .project.name
-                  : "Not Assigned"}
-              </TableCell>
-              <TableCell>
-                {employee.roles && employee.roles.length > 0
-                  ? employee.roles.join(", ") // Join roles with comma if there are multiple
-                  : "No Roles"}
-              </TableCell>
-              <TableCell>
-                {employee.skills && employee.skills.length > 0
-                  ? employee.skills.join(", ") // Join skills with comma if there are multiple
-                  : "No Skills"}
-              </TableCell>
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={() => {
-                      setEditingEmployee(employee);
-                      setSelectedSkills(employee.skills ?? []);
-                      setSelectedRoles(employee.roles ?? []);
-                      setIsEditDialogOpen(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive">Delete</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Are you absolutely sure?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(
-                                `/api/employees/${employee.id}`,
-                                { method: "DELETE" }
-                              );
-                              if (!response.ok)
-                                throw new Error("Failed to delete employee");
-                              await fetchEmployees();
-                              toast({
-                                title: "Success",
-                                description: "Employee deleted successfully",
-                              });
-                            } catch (error) {
-                              console.error("Error deleting employee:", error);
-                              toast({
-                                title: "Error",
-                                description: "Failed to delete employee",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </DataTableRow>
-          ))}
+          {isLoading
+            ? renderLoadingState()
+            : employees.map((employee) => (
+                <DataTableRow key={employee.id}>
+                  <TableCell>{employee.name}</TableCell>
+                  <TableCell>{employee.seniority}</TableCell>
+                  <TableCell>
+                    {employee.assignments?.length
+                      ? employee.assignments[employee.assignments.length - 1]
+                          .project.name
+                      : "Not Assigned"}
+                  </TableCell>
+                  <TableCell>
+                    {employee.roles && employee.roles.length > 0
+                      ? employee.roles.join(", ")
+                      : "No Roles"}
+                  </TableCell>
+                  <TableCell>
+                    {employee.skills && employee.skills.length > 0
+                      ? employee.skills.join(", ")
+                      : "No Skills"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() => {
+                          setEditingEmployee(employee);
+                          setSelectedSkills(employee.skills ?? []);
+                          setSelectedRoles(employee.roles ?? []);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive">Delete</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Are you absolutely sure?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch(
+                                    `/api/employees/${employee.id}`,
+                                    { method: "DELETE" }
+                                  );
+                                  if (!response.ok)
+                                    throw new Error(
+                                      "Failed to delete employee"
+                                    );
+                                  await fetchEmployees();
+                                  toast({
+                                    title: "Success",
+                                    description:
+                                      "Employee deleted successfully",
+                                  });
+                                } catch (error) {
+                                  console.error(
+                                    "Error deleting employee:",
+                                    error
+                                  );
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to delete employee",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </DataTableRow>
+              ))}
         </DataTableBody>
       </Table>
-
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
