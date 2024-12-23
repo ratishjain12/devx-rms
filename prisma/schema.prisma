@@ -7,61 +7,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-// prisma/schema.prisma
 model Employee {
-  id         Int      @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   name       String
   seniority  Seniority
-  skills     String[] // Array of skills as strings
-  roles String[]
-  // Relations
+  skills     String[]    
+  roles      String[]
   assignments Assignment[]
 }
 
 model Project {
-  id          Int      @id @default(autoincrement())
-  name        String
-  startDate   DateTime?
-  endDate     DateTime?
-  status      ProjectStatus // Current or Upcoming
-  tools       String[] // Array of tools as strings
-
-  // Relations
-  assignments Assignment[]
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  startDate           DateTime?
+  endDate             DateTime?
+  status              ProjectStatus        
+  tools               String[]             
+  assignments         Assignment[]
+  projectRequirements ProjectRequirement[]
 }
 
 model Assignment {
-  id            Int      @id @default(autoincrement())
-  employeeId    Int
-  projectId     Int
-  startDate     DateTime
-  endDate       DateTime
-  utilisation   Float    // Percentage of involvement (0-100)
+  id          Int      @id @default(autoincrement())
+  employeeId  Int
+  projectId   Int
+  startDate   DateTime
+  endDate     DateTime
+  utilisation Float    
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  project     Project  @relation(fields: [projectId], references: [id])
 
-  // Relations
-  employee      Employee @relation(fields: [employeeId], references: [id])
-  project       Project  @relation(fields: [projectId], references: [id])
+  @@unique([employeeId, projectId, startDate])
+}
 
-  @@unique([employeeId, projectId, startDate]) // Ensure unique assignments
+model ProjectRequirement {
+  id        Int       @id @default(autoincrement())
+  projectId Int
+  roleId    Int
+  seniority Seniority
+  startDate DateTime
+  endDate   DateTime
+  quantity  Int      
+  project   Project   @relation(fields: [projectId], references: [id])
+  role      Role      @relation(fields: [roleId], references: [id])
 }
 
 model Role {
-  id   Int    @id @default(autoincrement())
-  name String @unique
+  id                 Int                 @id @default(autoincrement())
+  name               String              @unique
+  projectRequirements ProjectRequirement[]
 }
 
 model Skill {
   id   Int    @id @default(autoincrement())
   name String @unique
-} 
+}
 
 model Type {
   id   Int    @id @default(autoincrement())
   name String @unique
 }
 
-// Enums for specific field constraints
 enum Seniority {
   SENIOR
   JUNIOR
