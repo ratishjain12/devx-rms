@@ -78,7 +78,7 @@ export default function Projects() {
     e.preventDefault();
     try {
       if (!editingProject) return;
-      const { assignments, ...projectData } = editingProject;
+      const { ...projectData } = editingProject;
 
       const response = await fetch("/api/projects", {
         method: "POST",
@@ -95,13 +95,15 @@ export default function Projects() {
         title: "Success",
         description: "Project created successfully.",
       });
-    } catch (error: any) {
-      console.error("Error creating project:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create project.",
-        variant: "destructive",
-      });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error creating project:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create project.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -110,7 +112,7 @@ export default function Projects() {
     try {
       if (!editingProject || !editingProject.id) return;
 
-      const { assignments, ...projectData } = editingProject;
+      const { ...projectData } = editingProject;
 
       const response = await fetch(`/api/projects?id=${editingProject.id}`, {
         method: "PUT",

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Briefcase, Calendar, AlertTriangle } from "lucide-react";
 import { AnalyticsData } from "@/types/types";
+import { Assignment } from "@prisma/client";
 
 export function AnalyticsCards() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
@@ -14,16 +15,18 @@ export function AnalyticsCards() {
     topOverlappingEmployees: null,
     overworkedEmployees: null,
   });
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
         // Fetch data from APIs
-        const fetchWithFallback = async (url: string): Promise<any> => {
+        const fetchWithFallback = async (url: string) => {
           try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error();
+            if (!response.ok) {
+              throw new Error();
+            }
             return await response.json();
           } catch {
             return null;
@@ -40,8 +43,9 @@ export function AnalyticsCards() {
           ]);
 
         const activeAssignments = assignments
-          ? assignments.filter((a: any) => new Date(a.endDate) >= new Date())
-              .length
+          ? assignments.filter(
+              (a: Assignment) => new Date(a.endDate) >= new Date()
+            ).length
           : null;
 
         setAnalyticsData({
@@ -50,10 +54,15 @@ export function AnalyticsCards() {
           activeAssignments,
           totalOverlaps: overlappingData ? overlappingData.totalCount : null,
           topOverlappingEmployees: overlappingData
-            ? overlappingData.topOverlappingEmployees.map((item: any) => ({
-                name: item.employee.name,
-                overlaps: item.overlapCount,
-              }))
+            ? overlappingData.topOverlappingEmployees.map(
+                (item: {
+                  employee: { id: number; name: string };
+                  overlapCount: number;
+                }) => ({
+                  name: item.employee.name,
+                  overlaps: item.overlapCount,
+                })
+              )
             : null,
           overworkedEmployees: overworked
             ? overworked.overworkedEmployees
