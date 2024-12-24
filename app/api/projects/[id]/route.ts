@@ -6,22 +6,34 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const data = await params;
-    const id = parseInt(data.id);
+    const id = parseInt(params.id);
 
-    // First, delete all assignments associated with the project
-    await prisma.assignment.deleteMany({
-      where: { projectId: id },
+    // Start a transaction to ensure all operations are performed or none
+    const deletedProject = await prisma.$transaction(async (prisma) => {
+      // Delete all project requirements associated with the project
+      await prisma.projectRequirement.deleteMany({
+        where: { projectId: id },
+      });
+
+      // Delete all assignments associated with the project
+      await prisma.assignment.deleteMany({
+        where: { projectId: id },
+      });
+
+      // Finally, delete the project
+      const deletedProject = await prisma.project.delete({
+        where: { id: id },
+      });
+
+      return deletedProject;
     });
 
-    // Then, delete the project
-    await prisma.project.delete({
-      where: { id: id },
+    return NextResponse.json({
+      message: "Deleted project successfully",
+      deletedProject,
     });
-
-    return NextResponse.json({ message: "Deleted project successfully" });
   } catch (error) {
-    console.error("Failed to delete project and its assignments:", error);
+    console.error("Failed to delete project and its associated data:", error);
     return NextResponse.json(
       { error: "Failed to delete project" },
       { status: 500 }

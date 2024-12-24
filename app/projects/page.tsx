@@ -26,12 +26,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Project, Assignment } from "@/types/models";
-import { ProjectStatus } from "@prisma/client";
+import { Project, Assignment, ProjectRequirement, Role } from "@/types/models";
+import { ProjectStatus, Seniority } from "@prisma/client";
 
-interface EditingProject extends Omit<Project, "id" | "assignments"> {
+interface EditingProject
+  extends Omit<
+    Project,
+    "id" | "assignments" | "projectRequirements" | "status"
+  > {
   id?: number;
   assignments?: Assignment[];
+  projectRequirements: (
+    | ProjectRequirement
+    | Partial<Omit<ProjectRequirement, "id" | "project" | "role">>
+  )[];
 }
 
 export default function Projects() {
@@ -43,9 +51,11 @@ export default function Projects() {
   );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [roles, setRoles] = useState<Role[]>([]);
 
   useEffect(() => {
     fetchProjects();
+    fetchRoles();
   }, []);
 
   const fetchProjects = async () => {
@@ -70,20 +80,55 @@ export default function Projects() {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch("/api/roles");
+      if (!response.ok) throw new Error("Failed to fetch roles");
+
+      const data: Role[] = await response.json();
+      setRoles(data);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch roles. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSearch = () => {
     fetchProjects();
+  };
+
+  const getProjectStatus = (
+    startDate: string,
+    endDate: string | null
+  ): ProjectStatus => {
+    const now = new Date();
+    const start = new Date(startDate);
+    const end = endDate ? new Date(endDate) : null;
+
+    if (now < start) {
+      return ProjectStatus.UPCOMING;
+    } else if (!end || now <= end) {
+      return ProjectStatus.CURRENT;
+    } else {
+      return ProjectStatus.COMPLETED;
+    }
   };
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (!editingProject) return;
-      const { ...projectData } = editingProject;
+      const { startDate, endDate, ...projectData } = editingProject;
+      const status = getProjectStatus(startDate, endDate);
 
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projectData),
+        body: JSON.stringify({ ...projectData, startDate, endDate, status }),
       });
 
       if (!response.ok) throw new Error("Failed to create project");
@@ -95,15 +140,13 @@ export default function Projects() {
         title: "Success",
         description: "Project created successfully.",
       });
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Error creating project:", error);
-        toast({
-          title: "Error",
-          description: error.message || "Failed to create project.",
-          variant: "destructive",
-        });
-      }
+    } catch (error) {
+      console.error("Error creating project:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create project.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -111,13 +154,13 @@ export default function Projects() {
     e.preventDefault();
     try {
       if (!editingProject || !editingProject.id) return;
-
-      const { ...projectData } = editingProject;
+      const { startDate, endDate, ...projectData } = editingProject;
+      const status = getProjectStatus(startDate, endDate);
 
       const response = await fetch(`/api/projects?id=${editingProject.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projectData),
+        body: JSON.stringify({ ...projectData, startDate, endDate, status }),
       });
 
       if (!response.ok) throw new Error("Failed to update project");
@@ -170,16 +213,68 @@ export default function Projects() {
             tools: [...project.tools],
             startDate: project.startDate.split("T")[0],
             endDate: project.endDate ? project.endDate.split("T")[0] : null,
+            projectRequirements: (project.projectRequirements || []).map(
+              (req) => ({
+                ...req,
+                startDate: req.startDate.split("T")[0],
+                endDate: req.endDate ? req.endDate.split("T")[0] : "",
+              })
+            ),
           }
         : {
             name: "",
-            status: "UPCOMING" as ProjectStatus,
             tools: [],
             startDate: "",
             endDate: null,
+            projectRequirements: [],
           }
     );
     setIsEditDialogOpen(true);
+  };
+
+  const handleAddRequirement = () => {
+    setEditingProject((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        projectRequirements: [
+          ...prev.projectRequirements,
+          {
+            roleId: 0,
+            seniority: Seniority.JUNIOR,
+            startDate: "",
+            endDate: "",
+            quantity: 1,
+          },
+        ],
+      };
+    });
+  };
+
+  const handleUpdateRequirement = (
+    index: number,
+    field: keyof ProjectRequirement,
+    value: unknown
+  ) => {
+    setEditingProject((prev) => {
+      if (!prev || !prev.projectRequirements) return prev;
+      const updatedRequirements = [...prev.projectRequirements];
+      updatedRequirements[index] = {
+        ...updatedRequirements[index],
+        [field]: value,
+      };
+      return { ...prev, projectRequirements: updatedRequirements };
+    });
+  };
+
+  const handleRemoveRequirement = (index: number) => {
+    setEditingProject((prev) => {
+      if (!prev || !prev.projectRequirements) return prev;
+      const updatedRequirements = prev.projectRequirements.filter(
+        (_, i) => i !== index
+      );
+      return { ...prev, projectRequirements: updatedRequirements };
+    });
   };
 
   return (
@@ -200,8 +295,9 @@ export default function Projects() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All</SelectItem>
-            <SelectItem value="CURRENT">Current</SelectItem>
-            <SelectItem value="UPCOMING">Upcoming</SelectItem>
+            <SelectItem value={ProjectStatus.CURRENT}>Current</SelectItem>
+            <SelectItem value={ProjectStatus.UPCOMING}>Upcoming</SelectItem>
+            <SelectItem value={ProjectStatus.COMPLETED}>Completed</SelectItem>
           </SelectContent>
         </Select>
         <Button onClick={handleSearch} disabled={isLoading}>
@@ -218,6 +314,7 @@ export default function Projects() {
             <TableHead>Start Date</TableHead>
             <TableHead>End Date</TableHead>
             <TableHead>Assigned Employees</TableHead>
+            <TableHead>Requirements</TableHead>
             <TableHead>Actions</TableHead>
           </DataTableRow>
         </TableHeader>
@@ -242,6 +339,14 @@ export default function Projects() {
                     .join(", ")}
               </TableCell>
               <TableCell>
+                {project.projectRequirements &&
+                  project.projectRequirements.map((req, index) => (
+                    <div key={index}>
+                      {req.role.name} - {req.seniority} ({req.quantity})
+                    </div>
+                  ))}
+              </TableCell>
+              <TableCell>
                 <div className="flex space-x-2">
                   <Button onClick={() => openEditDialog(project)}>Edit</Button>
                   <Button
@@ -257,7 +362,7 @@ export default function Projects() {
         </DataTableBody>
       </Table>
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>
               {editingProject?.id ? "Edit Project" : "Add New Project"}
@@ -281,26 +386,6 @@ export default function Projects() {
                 }
                 required
               />
-            </div>
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={editingProject?.status || ""}
-                onValueChange={(value) =>
-                  setEditingProject((prev) =>
-                    prev ? { ...prev, status: value as ProjectStatus } : null
-                  )
-                }
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CURRENT">Current</SelectItem>
-                  <SelectItem value="UPCOMING">Upcoming</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <Label htmlFor="tools">Tools (comma-separated)</Label>
@@ -346,6 +431,106 @@ export default function Projects() {
                   )
                 }
               />
+            </div>
+            <div>
+              <Label>Project Requirements</Label>
+              <div className="space-y-4 max-h-[300px] overflow-y-auto">
+                {editingProject?.projectRequirements?.map((req, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6 items-end"
+                  >
+                    <Select
+                      value={req.roleId?.toString() || ""}
+                      onValueChange={(value) =>
+                        handleUpdateRequirement(
+                          index,
+                          "roleId",
+                          parseInt(value)
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roles.map((role) => (
+                          <SelectItem key={role.id} value={role.id.toString()}>
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={req.seniority}
+                      onValueChange={(value) =>
+                        handleUpdateRequirement(
+                          index,
+                          "seniority",
+                          value as Seniority
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seniority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={Seniority.JUNIOR}>Junior</SelectItem>
+                        <SelectItem value={Seniority.SENIOR}>Senior</SelectItem>
+                        <SelectItem value={Seniority.INTERN}>Intern</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="date"
+                      value={req.startDate}
+                      onChange={(e) =>
+                        handleUpdateRequirement(
+                          index,
+                          "startDate",
+                          e.target.value
+                        )
+                      }
+                    />
+                    <Input
+                      type="date"
+                      value={req.endDate}
+                      onChange={(e) =>
+                        handleUpdateRequirement(
+                          index,
+                          "endDate",
+                          e.target.value
+                        )
+                      }
+                    />
+                    <Input
+                      type="number"
+                      value={req.quantity}
+                      onChange={(e) =>
+                        handleUpdateRequirement(
+                          index,
+                          "quantity",
+                          parseInt(e.target.value)
+                        )
+                      }
+                      min="1"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => handleRemoveRequirement(index)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                onClick={handleAddRequirement}
+                className="mt-2"
+              >
+                Add Requirement
+              </Button>
             </div>
             <Button type="submit">
               {editingProject?.id ? "Update Project" : "Create Project"}
