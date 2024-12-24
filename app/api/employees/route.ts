@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+
 import prisma from "@/db/db.config";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 
 export async function POST(request: Request) {
   try {
@@ -16,11 +18,16 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(employee, { status: 201 });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to create employee" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    if (error instanceof PrismaClientKnownRequestError) {
+      console.error("Failed to create employee:", error);
+      return NextResponse.json(
+        { error: "Failed to create employee" },
+        { status: 500 }
+      );
+    }
+
+    throw error;
   }
 }
 
@@ -37,10 +44,15 @@ export async function GET() {
     });
 
     return NextResponse.json(employees);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch employees" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    if (error instanceof PrismaClientKnownRequestError) {
+      console.error("Failed to fetch employees:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch employees" },
+        { status: 500 }
+      );
+    }
+
+    throw error;
   }
 }

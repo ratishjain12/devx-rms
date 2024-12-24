@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
-import { ProjectStatus } from "@prisma/client";
+import { Prisma, ProjectStatus } from "@prisma/client";
 
 export async function POST(request: Request) {
   try {
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
     const query = searchParams.get("q") || "";
     const status = searchParams.get("status") as ProjectStatus | "ALL" | null;
 
-    const whereClause: any = {
+    const whereClause: Prisma.ProjectWhereInput = {
       OR: [
         { name: { contains: query, mode: "insensitive" } },
         { tools: { hasSome: query.split(",").map((t) => t.trim()) } },

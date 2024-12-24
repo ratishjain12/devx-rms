@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
+import { Prisma } from "@prisma/client";
 
-export async function POST(request: Request) {
+interface AssignmentRequest {
+  employeeId: number;
+  projectId: number;
+  startDate: string;
+  endDate: string;
+  utilisation: number;
+}
+
+export async function POST(request: Request): Promise<NextResponse> {
   try {
-    const body = await request.json();
+    const body: AssignmentRequest = await request.json();
     const { employeeId, projectId, startDate, endDate, utilisation } = body;
 
     // Validate the input
@@ -30,9 +39,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(assignment, { status: 201 });
-  } catch (error: any) {
-    // Check for unique constraint violation
-    if (error.code === "P2002") {
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
       return NextResponse.json(
         {
           error:
@@ -50,7 +61,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   try {
     const assignments = await prisma.assignment.findMany({
       include: {
