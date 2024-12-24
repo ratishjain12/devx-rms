@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   Table,
   TableHeader,
@@ -53,28 +54,51 @@ export default function Projects() {
   const [isLoading, setIsLoading] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
 
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
   useEffect(() => {
     fetchProjects();
     fetchRoles();
-  }, []);
+  }, [debouncedSearchQuery, status]);
 
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `/api/projects?q=${searchQuery}&status=${status}`
-      );
-      if (!response.ok) throw new Error("Failed to fetch projects");
+      const queryParams = new URLSearchParams();
+      if (debouncedSearchQuery.trim())
+        queryParams.append("q", debouncedSearchQuery.trim());
+      if (status !== "ALL") queryParams.append("status", status);
 
-      const data: Project[] = await response.json();
+      const response = await fetch(
+        `/api/projects/search?${queryParams.toString()}`
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data)) {
+        console.error("Unexpected data format:", data);
+        throw new Error("Invalid data format received from API");
+      }
+
       setProjects(data);
     } catch (error) {
       console.error("Error fetching projects:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch projects. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch projects. Please try again.",
         variant: "destructive",
       });
+      setProjects([]); // Set to empty array in case of error
     } finally {
       setIsLoading(false);
     }
@@ -95,10 +119,6 @@ export default function Projects() {
         variant: "destructive",
       });
     }
-  };
-
-  const handleSearch = () => {
-    fetchProjects();
   };
 
   const getProjectStatus = (
@@ -300,67 +320,70 @@ export default function Projects() {
             <SelectItem value={ProjectStatus.COMPLETED}>Completed</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={handleSearch} disabled={isLoading}>
-          {isLoading ? "Searching..." : "Search"}
-        </Button>
         <Button onClick={() => openEditDialog()}>Add Project</Button>
       </div>
-      <Table>
-        <TableHeader>
-          <DataTableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Tools</TableHead>
-            <TableHead>Start Date</TableHead>
-            <TableHead>End Date</TableHead>
-            <TableHead>Assigned Employees</TableHead>
-            <TableHead>Requirements</TableHead>
-            <TableHead>Actions</TableHead>
-          </DataTableRow>
-        </TableHeader>
-        <DataTableBody>
-          {projects.map((project) => (
-            <DataTableRow key={project.id}>
-              <TableCell>{project.name}</TableCell>
-              <TableCell>{project.status}</TableCell>
-              <TableCell>{project.tools.join(", ")}</TableCell>
-              <TableCell>
-                {new Date(project.startDate).toLocaleDateString()}
-              </TableCell>
-              <TableCell>
-                {project.endDate
-                  ? new Date(project.endDate).toLocaleDateString()
-                  : "N/A"}
-              </TableCell>
-              <TableCell>
-                {project.assignments &&
-                  project.assignments
-                    .map((assignment) => assignment.employee.name)
-                    .join(", ")}
-              </TableCell>
-              <TableCell>
-                {project.projectRequirements &&
-                  project.projectRequirements.map((req, index) => (
-                    <div key={index}>
-                      {req.role.name} - {req.seniority} ({req.quantity})
-                    </div>
-                  ))}
-              </TableCell>
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button onClick={() => openEditDialog(project)}>Edit</Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleDeleteProject(project.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </TableCell>
+      {isLoading ? (
+        <p>Loading projects...</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <DataTableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Tools</TableHead>
+              <TableHead>Start Date</TableHead>
+              <TableHead>End Date</TableHead>
+              <TableHead>Assigned Employees</TableHead>
+              <TableHead>Requirements</TableHead>
+              <TableHead>Actions</TableHead>
             </DataTableRow>
-          ))}
-        </DataTableBody>
-      </Table>
+          </TableHeader>
+          <DataTableBody>
+            {projects.map((project) => (
+              <DataTableRow key={project.id}>
+                <TableCell>{project.name}</TableCell>
+                <TableCell>{project.status}</TableCell>
+                <TableCell>{project.tools.join(", ")}</TableCell>
+                <TableCell>
+                  {new Date(project.startDate).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  {project.endDate
+                    ? new Date(project.endDate).toLocaleDateString()
+                    : "N/A"}
+                </TableCell>
+                <TableCell>
+                  {project.assignments &&
+                    project.assignments
+                      .map((assignment) => assignment.employee.name)
+                      .join(", ")}
+                </TableCell>
+                <TableCell>
+                  {project.projectRequirements &&
+                    project.projectRequirements.map((req, index) => (
+                      <div key={index}>
+                        {req.role.name} - {req.seniority} ({req.quantity})
+                      </div>
+                    ))}
+                </TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Button onClick={() => openEditDialog(project)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleDeleteProject(project.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </TableCell>
+              </DataTableRow>
+            ))}
+          </DataTableBody>
+        </Table>
+      )}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>

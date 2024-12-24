@@ -1,29 +1,40 @@
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
-import { ProjectStatus } from "@prisma/client";
+import { Prisma, ProjectStatus } from "@prisma/client";
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const q = searchParams.get("q") || "";
+  const status = (searchParams.get("status") as ProjectStatus | "ALL") || "ALL";
+
   try {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q") || "";
-    const status = searchParams.get("status");
+    const whereClause: Prisma.ProjectWhereInput = {
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        ...(q
+          ? [{ tools: { hasSome: q.split(",").map((t) => t.trim()) } }]
+          : []),
+      ],
+    };
+
+    if (
+      status !== "ALL" &&
+      Object.values(ProjectStatus).includes(status as ProjectStatus)
+    ) {
+      whereClause.status = status as ProjectStatus;
+    }
 
     const projects = await prisma.project.findMany({
-      where: {
-        AND: [
-          {
-            OR: [
-              { name: { contains: query, mode: "insensitive" } },
-              { tools: { has: query } },
-            ],
-          },
-          status ? { status: status as ProjectStatus } : {},
-        ],
-      },
+      where: whereClause,
       include: {
         assignments: {
           include: {
             employee: true,
+          },
+        },
+        projectRequirements: {
+          include: {
+            role: true,
           },
         },
       },
@@ -31,6 +42,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(projects);
   } catch (error) {
+    console.error("Error searching projects:", error);
     return NextResponse.json(
       { error: "Failed to search projects" },
       { status: 500 }
