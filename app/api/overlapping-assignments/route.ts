@@ -25,6 +25,7 @@ export async function GET() {
       number,
       { employee: { id: number; name: string }; overlapCount: number }
     > = new Map();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const employeeAssignmentsMap: Record<number, any[]> = {};
 
     for (const assignment of assignments) {

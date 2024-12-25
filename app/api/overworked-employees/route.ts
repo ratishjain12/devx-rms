@@ -9,7 +9,7 @@ export async function GET() {
 
     const employeeUtilization: Record<
       number,
-      { employee: any; utilization: number }
+      { employee: { id: number; name: string }; utilization: number }
     > = {};
 
     // Calculate total utilization per employee

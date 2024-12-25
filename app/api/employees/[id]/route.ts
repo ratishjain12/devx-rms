@@ -34,3 +34,31 @@ export async function PUT(
     );
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const data = await params;
+    const id = parseInt(data.id);
+
+    // First, delete all assignments associated with this employee
+    await prisma.assignment.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // Then, delete the employee
+    const deletedEmployee = await prisma.employee.delete({
+      where: { id },
+    });
+
+    return NextResponse.json(deletedEmployee);
+  } catch (error) {
+    console.error("Failed to delete employee:", error);
+    return NextResponse.json(
+      { error: "Failed to delete employee" },
+      { status: 500 }
+    );
+  }
+}
