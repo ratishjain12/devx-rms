@@ -272,7 +272,7 @@ export default function Assign() {
   });
 
   return (
-    <div>
+    <div className="px-4">
       <h1 className="text-3xl font-bold mb-6">Assign Employees</h1>
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">
