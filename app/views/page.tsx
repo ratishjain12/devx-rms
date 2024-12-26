@@ -1,6 +1,7 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProjectsChart from "@/components/views/projects/ProjectsChart";
+import EmployeeUtilizationChart from "@/components/views/Employees/EmployeeCharts";
 
 const Page = () => {
   return (
@@ -15,6 +16,7 @@ const Page = () => {
         </TabsContent>
         <TabsContent value="Employee">
           {/* Employee content will go here */}
+          <EmployeeUtilizationChart />
         </TabsContent>
       </Tabs>
     </div>

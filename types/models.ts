@@ -28,9 +28,9 @@ export interface Assignment {
   id: number;
   employeeId: number;
   projectId: number;
-  startDate: Date;
-  endDate: Date;
-  utilisation: number;
+  startDate: string;
+  endDate: string;
+  utilization: number;
   employee: Employee;
   project: Project;
 }
