@@ -221,12 +221,15 @@ export default function Assign() {
     }
   };
 
-  const openEditDialog = (assignment: Assignment | null = null) => {
+  const openEditDialog = (assignment?: Assignment) => {
     setEditingAssignment(
       assignment
-        ? { ...assignment }
+        ? {
+            ...assignment,
+            startDate: assignment.startDate.split("T")[0], // Format as YYYY-MM-DD
+            endDate: assignment.endDate.split("T")[0],
+          }
         : {
-            projectId: 0,
             startDate: "",
             endDate: "",
             utilisation: 100,
@@ -265,10 +268,7 @@ export default function Assign() {
 
   const filteredAssignments = assignments.filter((assignment) => {
     const searchTerm = searchQuery.toLowerCase();
-    return (
-      assignment.employee.name.toLowerCase().includes(searchTerm) ||
-      assignment.project.name.toLowerCase().includes(searchTerm)
-    );
+    return assignment.employee.name.toLowerCase().includes(searchTerm);
   });
 
   return (
@@ -483,12 +483,35 @@ export default function Assign() {
                       key={employee.id}
                       value={employee.id.toString()}
                     >
-                      {employee.name}
+                      {employee.name} ({employee.seniority}) (
+                      {employee.roles.join(", ")})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            {selectedEmployee && (
+              <div>
+                {employees
+                  .filter(
+                    (employee) => employee.id.toString() === selectedEmployee
+                  )
+                  .map((employee) => (
+                    <div key={employee.id}>
+                      <Label className="flex gap-2">
+                        Currently Assigned:{" "}
+                        {employee.assignments.map((assignment) => (
+                          <span key={assignment.id}>
+                            {assignment.project.name}
+                          </span>
+                        ))}
+                      </Label>
+
+                      <Label>Roles: {employee.roles.join(", ")}</Label>
+                    </div>
+                  ))}
+              </div>
+            )}
             <div>
               <Label htmlFor="project">Project</Label>
               <Select

@@ -65,22 +65,21 @@ const ProjectsChart: React.FC = () => {
     project: Project,
     requirement: ProjectRequirement
   ): number => {
+    // Find employees assigned to this requirement based on role, designation, and dates
     const relevantAssignments = project.assignments.filter(
       (assignment) =>
         assignment.employee.roles.includes(requirement.role.name) &&
         assignment.employee.seniority === requirement.seniority &&
-        new Date(assignment.startDate) >= new Date(requirement.startDate) &&
-        new Date(assignment.endDate) <= new Date(requirement.endDate)
+        // Ensure the employee's dates encompass the requirement's start and end dates
+        new Date(assignment.startDate) <= new Date(requirement.startDate) &&
+        new Date(assignment.endDate) >= new Date(requirement.endDate)
     );
 
-    const assignedQuantity = relevantAssignments.reduce(
-      (sum, assignment) => sum + assignment.utilisation / 100,
-      0
-    );
+    const assignedCount = relevantAssignments.length; // Count of employees assigned to the requirement
 
-    if (assignedQuantity < requirement.quantity) {
+    if (assignedCount < requirement.quantity) {
       return 3; // Blue: Underfilled
-    } else if (assignedQuantity > requirement.quantity) {
+    } else if (assignedCount > requirement.quantity) {
       return 2; // Red: Overfilled
     }
     return 1; // Green: Requirements met
@@ -95,14 +94,9 @@ const ProjectsChart: React.FC = () => {
             role: requirement.role.name,
             designation: requirement.seniority, // Include designation
             required: requirement.quantity,
-            assigned: project.assignments
-              .filter((assignment) =>
-                assignment.employee.roles.includes(requirement.role.name)
-              )
-              .reduce(
-                (sum, assignment) => sum + assignment.utilisation / 100,
-                0
-              ),
+            assigned: project.assignments.filter((assignment) =>
+              assignment.employee.roles.includes(requirement.role.name)
+            ).length, // Count of employees assigned to this requirement
             status,
           };
         }
@@ -110,11 +104,11 @@ const ProjectsChart: React.FC = () => {
 
       // Determine overall project status based on requirements
       const overallStatus = aggregatedRequirements.some(
-        (req) => req.status === 3
+        (req) => req.status === 2 // If any requirement is overfilled
       )
-        ? "#2196F3" // Blue: Underfilled
-        : aggregatedRequirements.some((req) => req.status === 2)
         ? "#F44336" // Red: Overfilled
+        : aggregatedRequirements.some((req) => req.status === 3)
+        ? "#2196F3" // Blue: Underfilled
         : "#4CAF50"; // Green: All requirements met
 
       return {
@@ -126,7 +120,7 @@ const ProjectsChart: React.FC = () => {
             aggregatedRequirements, // Pass aggregated requirements for tooltips
           },
         ],
-        backgroundColor: overallStatus,
+        backgroundColor: overallStatus, // Set the color based on the overall status
         borderWidth: 1,
       };
     });
