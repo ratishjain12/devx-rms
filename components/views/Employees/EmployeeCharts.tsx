@@ -67,7 +67,6 @@ const EmployeeUtilizationChart: React.FC = () => {
       }
       const data = await response.json();
       setAssignments(data);
-      console.log(data);
 
       // Calculate total utilization for each employee
       const employeeUtilizationMap: Record<string, number> = {};
@@ -90,7 +89,6 @@ const EmployeeUtilizationChart: React.FC = () => {
           totalUtilization,
         }));
 
-      // Set overutilized employees
       setOverUtilizedEmployees(overUtilizedEmployees);
     } catch (error) {
       console.error("Error fetching assignments:", error);
@@ -119,7 +117,6 @@ const EmployeeUtilizationChart: React.FC = () => {
     assignments?.forEach((assignment) => {
       const { employee, project, utilisation, startDate, endDate } = assignment;
 
-      // Ensure employeeData for each employee is initialized
       if (!employeeData[employee.name]) {
         employeeData[employee.name] = { utilizationData: [] };
       }
@@ -138,46 +135,42 @@ const EmployeeUtilizationChart: React.FC = () => {
 
     const datasets = Object.entries(employeeData).map(
       ([employeeName, data]) => {
-        // Calculate the earliest start date and latest end date for the employee
-        const allStartDates = data.utilizationData.map(
-          (entry) => new Date(entry.startDate)
-        );
-        const allEndDates = data.utilizationData.map(
-          (entry) => new Date(entry.endDate)
-        );
-        const earliestStartDate = new Date(
-          Math.min(...allStartDates.map((date) => date.getTime()))
-        );
-        const latestEndDate = new Date(
-          Math.max(...allEndDates.map((date) => date.getTime()))
+        // Sort assignments by start date for each employee
+        const sortedAssignments = data.utilizationData.sort(
+          (a, b) =>
+            new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
         );
 
-        // Calculate the total duration of the employee's assignments
-        const totalDuration =
-          latestEndDate.getTime() - earliestStartDate.getTime();
-
-        // Now divide the bar into equal parts based on the number of assignments
-        const utilizationData = data.utilizationData.map((entry, index) => {
-          const { color } = getUtilizationRange(entry.utilization);
-
-          // Calculate the relative start and end date for each segment
-          const segmentDuration = totalDuration / data.utilizationData.length;
-          const segmentStartDate = new Date(
-            earliestStartDate.getTime() + index * segmentDuration
-          );
-          const segmentEndDate = new Date(
-            earliestStartDate.getTime() + (index + 1) * segmentDuration
-          );
-
-          return {
-            x: [segmentStartDate.toISOString(), segmentEndDate.toISOString()], // Time range for the x-axis
+        const utilizationData: any[] = [];
+        for (let i = 0; i < sortedAssignments.length; i++) {
+          const current = sortedAssignments[i];
+          utilizationData.push({
+            x: [current.startDate, current.endDate],
             y: employeeName,
-            projectName: entry.projectName,
-            utilization: entry.utilization,
-            range: entry.range,
-            backgroundColor: color, // Set the color dynamically for each segment
-          };
-        });
+            projectName: current.projectName,
+            utilization: current.utilization,
+            range: current.range,
+            backgroundColor: current.color,
+          });
+
+          // Check for gaps between assignments
+          if (i < sortedAssignments.length - 1) {
+            const next = sortedAssignments[i + 1];
+            const currentEnd = new Date(current.endDate).getTime();
+            const nextStart = new Date(next.startDate).getTime();
+
+            if (nextStart > currentEnd) {
+              utilizationData.push({
+                x: [current.endDate, next.startDate],
+                y: employeeName,
+                projectName: "No Assignment",
+                utilization: 0,
+                range: "No Utilization",
+                backgroundColor: "#E0E0E0", // Neutral gray
+              });
+            }
+          }
+        }
 
         return {
           label: employeeName,
@@ -185,7 +178,7 @@ const EmployeeUtilizationChart: React.FC = () => {
           borderWidth: 1,
           backgroundColor: utilizationData.map(
             (entry) => entry.backgroundColor
-          ), // Dynamically set the backgroundColor for each segment
+          ),
         };
       }
     );
@@ -212,12 +205,12 @@ const EmployeeUtilizationChart: React.FC = () => {
   const { datasets, labels } = prepareChartData();
 
   const chartOptions: ChartOptions<"bar"> = {
-    indexAxis: "y", // Set horizontal bars
+    indexAxis: "y",
     responsive: true,
     maintainAspectRatio: false,
     scales: {
       x: {
-        type: "time", // Time-based x-axis
+        type: "time",
         time: {
           unit: "week",
           tooltipFormat: "MMM d",
@@ -229,6 +222,7 @@ const EmployeeUtilizationChart: React.FC = () => {
           display: true,
           text: "Timeline",
         },
+        // Restrict x-axis to three months
         min: new Date(
           new Date().getFullYear(),
           new Date().getMonth(),
@@ -245,7 +239,7 @@ const EmployeeUtilizationChart: React.FC = () => {
           display: true,
           text: "Employees",
         },
-        stacked: true, // Enable stacked bars on y-axis
+        stacked: true,
       },
     },
     plugins: {
