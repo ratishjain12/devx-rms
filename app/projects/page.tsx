@@ -362,7 +362,7 @@ export default function Projects() {
               <TableHead>Status</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Client Satisfaction</TableHead>
-              <TableHead>Tools</TableHead>
+
               <TableHead>Start Date</TableHead>
               <TableHead>End Date</TableHead>
               <TableHead>Assigned Employees</TableHead>
@@ -377,7 +377,7 @@ export default function Projects() {
                 <TableCell>{project.status}</TableCell>
                 <TableCell>{project.type}</TableCell>
                 <TableCell>{project.client_satisfaction}</TableCell>
-                <TableCell>{project.tools.join(", ")}</TableCell>
+
                 <TableCell>
                   {new Date(project.startDate).toLocaleDateString()}
                 </TableCell>

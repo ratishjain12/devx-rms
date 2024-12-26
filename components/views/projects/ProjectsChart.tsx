@@ -87,31 +87,49 @@ const ProjectsChart: React.FC = () => {
   };
 
   const prepareChartData = () => {
-    const datasets = projects.flatMap((project) =>
-      project.projectRequirements.map((requirement) => {
-        const status = getRequirementStatus(project, requirement);
+    const datasets = projects.map((project) => {
+      const aggregatedRequirements = project.projectRequirements.map(
+        (requirement) => {
+          const status = getRequirementStatus(project, requirement);
+          return {
+            role: requirement.role.name,
+            designation: requirement.seniority, // Include designation
+            required: requirement.quantity,
+            assigned: project.assignments
+              .filter((assignment) =>
+                assignment.employee.roles.includes(requirement.role.name)
+              )
+              .reduce(
+                (sum, assignment) => sum + assignment.utilisation / 100,
+                0
+              ),
+            status,
+          };
+        }
+      );
 
-        return {
-          label: project.name,
-          data: [
-            {
-              x: [project.startDate, project.endDate], // Timeline range
-              y: project.name, // Project name for y-axis
-              status,
-            },
-          ],
-          backgroundColor:
-            status === 1
-              ? "#4CAF50" // Green: Requirements met
-              : status === 2
-              ? "#F44336" // Red: Overfilled
-              : status === 3
-              ? "#2196F3" // Blue: Underfilled
-              : "rgba(0,0,0,0.1)",
-          borderWidth: 1,
-        };
-      })
-    );
+      // Determine overall project status based on requirements
+      const overallStatus = aggregatedRequirements.some(
+        (req) => req.status === 3
+      )
+        ? "#2196F3" // Blue: Underfilled
+        : aggregatedRequirements.some((req) => req.status === 2)
+        ? "#F44336" // Red: Overfilled
+        : "#4CAF50"; // Green: All requirements met
+
+      return {
+        label: project.name,
+        data: [
+          {
+            x: [project.startDate, project.endDate], // Timeline range
+            y: project.name, // Project name for y-axis
+            aggregatedRequirements, // Pass aggregated requirements for tooltips
+          },
+        ],
+        backgroundColor: overallStatus,
+        borderWidth: 1,
+      };
+    });
 
     return { datasets };
   };
@@ -138,14 +156,14 @@ const ProjectsChart: React.FC = () => {
           new Date().getFullYear(),
           new Date().getMonth(),
           1
-        ).toISOString(), // First day of the current month
+        ).toISOString(),
         max: new Date(
           new Date().setMonth(new Date().getMonth() + 3)
-        ).toISOString(), // Three months from now
+        ).toISOString(),
       },
       y: {
-        type: "category", // Ensure y-axis treats labels as categories
-        labels: projects.map((project) => project.name), // Map project names explicitly
+        type: "category",
+        labels: projects.map((project) => project.name),
         title: {
           display: true,
           text: "Projects",
@@ -162,21 +180,26 @@ const ProjectsChart: React.FC = () => {
       },
       tooltip: {
         callbacks: {
-          label: (context: any) => {
-            const projectName = context.dataset.label;
-            const statusIndex = context.dataIndex;
-            const status = context.dataset.status[statusIndex];
+          label: (tooltipItem: any) => {
+            const data = tooltipItem.raw; // Access raw data for the tooltip
+            const aggregatedRequirements = data.aggregatedRequirements;
 
-            const statusText =
-              status === 1
-                ? "Met"
-                : status === 2
-                ? "Overfilled"
-                : status === 3
-                ? "Underfilled"
-                : "Unknown";
+            const requirementsDetails = aggregatedRequirements.map(
+              (req: any) =>
+                `Role: ${req.role}, Designation: ${
+                  req.designation
+                }, Required: ${req.required}, Assigned: ${
+                  req.assigned
+                }, Status: ${
+                  req.status === 1
+                    ? "Met"
+                    : req.status === 2
+                    ? "Overfilled"
+                    : "Underfilled"
+                }`
+            );
 
-            return [`${projectName}`, `Status: ${statusText}`];
+            return [`Project: ${data.y}`, ...requirementsDetails];
           },
         },
       },

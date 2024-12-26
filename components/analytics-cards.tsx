@@ -50,7 +50,7 @@ export function AnalyticsCards() {
 
         setAnalyticsData({
           totalEmployees: employees ? employees.length : null,
-          totalProjects: projects ? projects.length : null,
+          totalProjects: projects?.projects ? projects?.projects.length : null,
           activeAssignments,
           totalOverlaps: overlappingData ? overlappingData.totalCount : null,
           topOverlappingEmployees: overlappingData
