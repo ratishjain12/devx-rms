@@ -229,7 +229,7 @@ const EmployeeUtilizationChart: React.FC = () => {
           1
         ).toISOString(),
         max: new Date(
-          new Date().setMonth(new Date().getMonth() + 3)
+          new Date().setMonth(new Date().getMonth() + 12)
         ).toISOString(),
       },
       y: {
@@ -254,11 +254,15 @@ const EmployeeUtilizationChart: React.FC = () => {
         callbacks: {
           label: (tooltipItem: any) => {
             const data = tooltipItem.raw;
+            const dateRange = `Dates: ${new Date(data.x[0])} - ${new Date(
+              data.x[1]
+            )}`;
             return [
               `Employee: ${data.y}`,
               `Project: ${data.projectName}`,
               `Utilization: ${data.utilization.toFixed(2)}%`,
               `Range: ${data.range}`,
+              dateRange, // Add date range to the tooltip
             ];
           },
         },
