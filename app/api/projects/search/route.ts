@@ -9,18 +9,10 @@ export async function GET(request: Request) {
 
   try {
     const whereClause: Prisma.ProjectWhereInput = {
-      OR: [
-        { name: { contains: q, mode: "insensitive" } },
-        ...(q
-          ? [{ tools: { hasSome: q.split(",").map((t) => t.trim()) } }]
-          : []),
-      ],
+      OR: [{ name: { contains: q, mode: "insensitive" } }],
     };
 
-    if (
-      status !== "ALL" &&
-      Object.values(ProjectStatus).includes(status as ProjectStatus)
-    ) {
+    if (status !== "ALL") {
       whereClause.status = status as ProjectStatus;
     }
 
@@ -40,12 +32,17 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json(projects);
+    return NextResponse.json({ projects });
   } catch (error) {
     console.error("Error searching projects:", error);
     return NextResponse.json(
-      { error: "Failed to search projects" },
+      {
+        error: "Failed to search projects",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
 }
+
+export const dynamic = "force-dynamic";

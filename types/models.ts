@@ -18,6 +18,8 @@ export interface Project {
   tools: string[];
   startDate: string;
   endDate: string | null;
+  type: string;
+  client_satisfaction: string;
   assignments: Assignment[];
   projectRequirements: ProjectRequirement[];
 }

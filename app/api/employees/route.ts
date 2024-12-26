@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-
 import prisma from "@/db/db.config";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 

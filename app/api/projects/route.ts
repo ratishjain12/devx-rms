@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
-import { ProjectRequirement, ProjectStatus, Seniority } from "@prisma/client";
+import {
+  ProjectRequirement,
+  ProjectStatus,
+  Seniority,
+  Satisfaction,
+} from "@prisma/client";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -26,11 +31,12 @@ export async function GET(request: Request) {
         },
       },
     });
-    return NextResponse.json(projects);
+
+    return NextResponse.json({ projects });
   } catch (error) {
     console.error("Failed to fetch projects:", error);
     return NextResponse.json(
-      { error: "Failed to fetch projects" },
+      { error: "Failed to fetch projects", projects: [] },
       { status: 500 }
     );
   }
@@ -39,18 +45,45 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, status, tools, startDate, endDate, projectRequirements } =
-      body;
+    console.log("Received POST request with body:", body);
+
+    if (!body || typeof body !== "object") {
+      throw new Error("Invalid request body");
+    }
+
+    const {
+      name,
+      status,
+      tools,
+      startDate,
+      endDate,
+      projectRequirements,
+      type,
+      client_satisfaction,
+    } = body;
+
+    if (
+      !name ||
+      !status ||
+      !tools ||
+      !startDate ||
+      !type ||
+      !client_satisfaction
+    ) {
+      throw new Error("Missing required fields");
+    }
 
     const newProject = await prisma.project.create({
       data: {
         name,
-        status,
+        status: status as ProjectStatus,
         tools,
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
+        type,
+        client_satisfaction: client_satisfaction as Satisfaction,
         projectRequirements: {
-          create: projectRequirements.map(
+          create: (projectRequirements || []).map(
             (req: {
               roleId: string;
               seniority: Seniority;
@@ -76,11 +109,15 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(newProject);
+    console.log("Created new project:", newProject);
+    return NextResponse.json({ newProject });
   } catch (error) {
     console.error("Failed to create project:", error);
     return NextResponse.json(
-      { error: "Failed to create project" },
+      {
+        error: "Failed to create project",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
@@ -92,15 +129,25 @@ export async function PUT(request: Request) {
 
   if (!id) {
     return NextResponse.json(
-      { error: "Project ID is required" },
+      { error: "Project ID is required", project: null },
       { status: 400 }
     );
   }
 
   try {
     const body = await request.json();
-    const { name, status, tools, startDate, endDate, projectRequirements } =
-      body;
+    console.log("Received PUT request with body:", body);
+
+    const {
+      name,
+      status,
+      tools,
+      startDate,
+      endDate,
+      projectRequirements,
+      type,
+      client_satisfaction,
+    } = body;
 
     const updatedProject = await prisma.$transaction(async (prisma) => {
       // Update the project
@@ -108,10 +155,12 @@ export async function PUT(request: Request) {
         where: { id: parseInt(id) },
         data: {
           name,
-          status,
+          status: status as ProjectStatus,
           tools,
           startDate: new Date(startDate),
           endDate: endDate ? new Date(endDate) : null,
+          type,
+          client_satisfaction: client_satisfaction as Satisfaction,
         },
       });
 
@@ -147,11 +196,15 @@ export async function PUT(request: Request) {
       });
     });
 
-    return NextResponse.json(updatedProject);
+    console.log("Updated project:", updatedProject);
+    return NextResponse.json({ updatedProject });
   } catch (error) {
     console.error("Failed to update project:", error);
     return NextResponse.json(
-      { error: "Failed to update project" },
+      {
+        error: "Failed to update project",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

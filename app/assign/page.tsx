@@ -100,7 +100,7 @@ export default function Assign() {
       const response = await fetch("/api/projects");
       if (!response.ok) throw new Error("Failed to fetch projects");
       const data = await response.json();
-      setProjects(data);
+      setProjects(data.projects);
     } catch (error) {
       console.error("Error fetching projects:", error);
       toast({
@@ -505,11 +505,16 @@ export default function Assign() {
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects?.map((project) => (
-                    <SelectItem key={project.id} value={project.id.toString()}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
+                  {projects &&
+                    projects.length > 0 &&
+                    projects?.map((project) => (
+                      <SelectItem
+                        key={project.id}
+                        value={project.id.toString()}
+                      >
+                        {project.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

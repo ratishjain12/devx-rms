@@ -50,7 +50,7 @@ const ProjectsChart: React.FC = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      setProjects(data);
+      setProjects(data.projects);
     } catch (error) {
       console.error("Error fetching projects:", error);
       setError(

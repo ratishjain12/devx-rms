@@ -38,7 +38,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
-import { Employee, Skill, Role } from "@/types/types";
+import { Employee, Skill, Role } from "@/types/models";
 import { Seniority } from "@prisma/client";
 
 export default function Employees() {

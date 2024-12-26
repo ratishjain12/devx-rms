@@ -27,8 +27,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Project, Assignment, ProjectRequirement, Role } from "@/types/models";
-import { ProjectStatus, Seniority } from "@prisma/client";
+import {
+  Project,
+  Assignment,
+  ProjectRequirement,
+  Role,
+  Type,
+} from "@/types/models";
+import { ProjectStatus, Satisfaction, Seniority } from "@prisma/client";
 
 interface EditingProject
   extends Omit<
@@ -53,12 +59,15 @@ export default function Projects() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [types, setTypes] = useState<Type[]>([]);
+  console.log(types);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     fetchProjects();
     fetchRoles();
+    fetchTypes();
   }, [debouncedSearchQuery, status]);
 
   const fetchProjects = async () => {
@@ -82,12 +91,12 @@ export default function Projects() {
 
       const data = await response.json();
 
-      if (!Array.isArray(data)) {
+      if (!Array.isArray(data.projects)) {
         console.error("Unexpected data format:", data);
         throw new Error("Invalid data format received from API");
       }
 
-      setProjects(data);
+      setProjects(data.projects);
     } catch (error) {
       console.error("Error fetching projects:", error);
       toast({
@@ -116,6 +125,23 @@ export default function Projects() {
       toast({
         title: "Error",
         description: "Failed to fetch roles. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchTypes = async () => {
+    try {
+      const response = await fetch("/api/types");
+      if (!response.ok) throw new Error("Failed to fetch project types");
+
+      const data: Type[] = await response.json();
+      setTypes(data);
+    } catch (error) {
+      console.error("Error fetching project types:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch project types. Please try again.",
         variant: "destructive",
       });
     }
@@ -240,6 +266,8 @@ export default function Projects() {
                 endDate: req.endDate ? req.endDate.split("T")[0] : "",
               })
             ),
+            type: project.type,
+            client_satisfaction: project.client_satisfaction,
           }
         : {
             name: "",
@@ -247,6 +275,8 @@ export default function Projects() {
             startDate: "",
             endDate: null,
             projectRequirements: [],
+            type: "",
+            client_satisfaction: Satisfaction.IDK,
           }
     );
     setIsEditDialogOpen(true);
@@ -330,6 +360,8 @@ export default function Projects() {
             <DataTableRow>
               <TableHead>Name</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Client Satisfaction</TableHead>
               <TableHead>Tools</TableHead>
               <TableHead>Start Date</TableHead>
               <TableHead>End Date</TableHead>
@@ -343,6 +375,8 @@ export default function Projects() {
               <DataTableRow key={project.id}>
                 <TableCell>{project.name}</TableCell>
                 <TableCell>{project.status}</TableCell>
+                <TableCell>{project.type}</TableCell>
+                <TableCell>{project.client_satisfaction}</TableCell>
                 <TableCell>{project.tools.join(", ")}</TableCell>
                 <TableCell>
                   {new Date(project.startDate).toLocaleDateString()}
@@ -360,9 +394,10 @@ export default function Projects() {
                 </TableCell>
                 <TableCell>
                   {project.projectRequirements &&
-                    project.projectRequirements.map((req, index) => (
-                      <div key={index}>
-                        {req.role.name} - {req.seniority} ({req.quantity})
+                    project.projectRequirements.map((req) => (
+                      <div key={req.id}>
+                        {req.role?.name || "Unknown Role"} - {req.seniority} (
+                        {req.quantity})
                       </div>
                     ))}
                 </TableCell>
@@ -409,6 +444,52 @@ export default function Projects() {
                 }
                 required
               />
+            </div>
+            <div>
+              <Label htmlFor="type">Type</Label>
+              <Select
+                value={editingProject?.type || ""}
+                onValueChange={(value) =>
+                  setEditingProject((prev) =>
+                    prev ? { ...prev, type: value } : null
+                  )
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {types.map((type) => (
+                    <SelectItem key={type.id} value={type.name}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="client_satisfaction">Client Satisfaction</Label>
+              <Select
+                value={editingProject?.client_satisfaction || ""}
+                onValueChange={(value) =>
+                  setEditingProject((prev) =>
+                    prev
+                      ? { ...prev, client_satisfaction: value as Satisfaction }
+                      : null
+                  )
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select client satisfaction" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(Satisfaction).map((satisfaction) => (
+                    <SelectItem key={satisfaction} value={satisfaction}>
+                      {satisfaction}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="tools">Tools (comma-separated)</Label>

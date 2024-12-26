@@ -22,7 +22,9 @@ model Project {
   startDate           DateTime?
   endDate             DateTime?
   status              ProjectStatus        
-  tools               String[]             
+  tools               String[]
+  type                String
+  client_satisfaction Satisfaction            
   assignments         Assignment[]
   projectRequirements ProjectRequirement[]
 }
@@ -78,4 +80,13 @@ enum ProjectStatus {
   CURRENT
   UPCOMING
   COMPLETED
+}
+
+enum Satisfaction {
+  ABOUT_TO_FIRE
+  NOT_HAPPY
+  IDK
+  OK
+  HAPPY
+  OVER_THE_MOON
 }
