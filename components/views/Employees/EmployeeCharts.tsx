@@ -269,6 +269,7 @@ const EmployeeUtilizationChart: React.FC = () => {
       title: {
         display: true,
         text: "Employee Utilization Chart",
+        color: isDarkMode ? "#FFFFFF" : "#000000",
       },
       tooltip: {
         callbacks: {
