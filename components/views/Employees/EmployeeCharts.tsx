@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useTheme } from "next-themes";
 
 ChartJS.register(
   CategoryScale,
@@ -48,7 +49,8 @@ const EmployeeUtilizationChart: React.FC = () => {
   const [overUtilizedEmployees, setOverUtilizedEmployees] = useState<
     overUtilizedEmployees[]
   >([]);
-
+  const { theme } = useTheme();
+  const isDarkMode = theme === "dark";
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -181,7 +183,6 @@ const EmployeeUtilizationChart: React.FC = () => {
           ),
           categoryPercentage: 0.6,
           barPercentage: 0.8,
-
           borderWidth: 1,
         };
       }
@@ -226,6 +227,7 @@ const EmployeeUtilizationChart: React.FC = () => {
         title: {
           display: true,
           text: "Timeline",
+          color: isDarkMode ? "#FFFFFF" : "#000000",
         },
         // Restrict x-axis to three months
         min: new Date(
@@ -236,6 +238,10 @@ const EmployeeUtilizationChart: React.FC = () => {
         max: new Date(
           new Date().setMonth(new Date().getMonth() + 6)
         ).toISOString(),
+
+        ticks: {
+          color: isDarkMode ? "#FFFFFF" : "#000000",
+        },
       },
       y: {
         type: "category",
@@ -243,6 +249,7 @@ const EmployeeUtilizationChart: React.FC = () => {
         title: {
           display: true,
           text: "Employees",
+          color: isDarkMode ? "#FFFFFF" : "#000000",
         },
         stacked: true,
         grid: {
@@ -250,12 +257,14 @@ const EmployeeUtilizationChart: React.FC = () => {
         },
         ticks: {
           crossAlign: "near",
+          color: isDarkMode ? "#FFFFFF" : "#000000",
         },
       },
     },
     plugins: {
       legend: {
         position: "top",
+        labels: { color: isDarkMode ? "#FFFFFF" : "#000000" },
       },
       title: {
         display: true,

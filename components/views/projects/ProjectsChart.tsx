@@ -16,6 +16,7 @@ import {
 import { Bar } from "react-chartjs-2";
 import "chartjs-adapter-date-fns";
 import { Project, ProjectRequirement } from "@/types/models";
+import { useTheme } from "next-themes";
 
 ChartJS.register(
   CategoryScale,
@@ -32,7 +33,8 @@ const ProjectsChart: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
-
+  const { theme } = useTheme();
+  const isDarkMode = theme === "dark";
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -164,10 +166,14 @@ const ProjectsChart: React.FC = () => {
             week: "MMM d",
           },
         },
+        ticks: {
+          color: isDarkMode ? "#FFFFFF" : "#000000",
+        },
         position: "top",
         title: {
           display: true,
           text: "Timeline",
+          color: isDarkMode ? "white" : "black",
         },
         min: new Date(
           new Date().getFullYear(),
@@ -184,6 +190,7 @@ const ProjectsChart: React.FC = () => {
         title: {
           display: true,
           text: "Projects",
+          color: isDarkMode ? "white" : "black",
         },
         stacked: true,
         grid: {
@@ -191,16 +198,21 @@ const ProjectsChart: React.FC = () => {
         },
         ticks: {
           crossAlign: "near",
+          color: isDarkMode ? "#FFFFFF" : "#000000",
         },
       },
     },
     plugins: {
       legend: {
         display: true,
+        labels: {
+          color: isDarkMode ? "#FFFFFF" : "#000000",
+        },
       },
       title: {
         display: true,
         text: "Project Requirements Fulfillment",
+        color: isDarkMode ? "white" : "black",
       },
       tooltip: {
         callbacks: {
