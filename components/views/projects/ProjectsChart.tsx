@@ -104,8 +104,8 @@ const ProjectsChart: React.FC = () => {
             },
           ],
           backgroundColor: hasAssignments ? "#F44336" : "#E0E0E0",
-          barPercentage: 0.3,
-          categoryPercentage: 1,
+          barPercentage: 0.7,
+          categoryPercentage: 0.6,
         };
       }
 
@@ -142,8 +142,8 @@ const ProjectsChart: React.FC = () => {
           },
         ],
         backgroundColor: overallStatus,
-        barPercentage: 0.3,
-        categoryPercentage: 1,
+        barPercentage: 0.7,
+        categoryPercentage: 0.6,
       };
     });
 
@@ -186,6 +186,12 @@ const ProjectsChart: React.FC = () => {
           text: "Projects",
         },
         stacked: true,
+        grid: {
+          display: false,
+        },
+        ticks: {
+          crossAlign: "near",
+        },
       },
     },
     plugins: {

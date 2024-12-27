@@ -179,8 +179,10 @@ const EmployeeUtilizationChart: React.FC = () => {
           backgroundColor: utilizationData.map(
             (entry) => entry.backgroundColor
           ),
-          categoryPercentage: 1,
-          barPercentage: 0.3,
+          categoryPercentage: 0.6,
+          barPercentage: 0.8,
+
+          borderWidth: 1,
         };
       }
     );
@@ -243,6 +245,12 @@ const EmployeeUtilizationChart: React.FC = () => {
           text: "Employees",
         },
         stacked: true,
+        grid: {
+          display: false,
+        },
+        ticks: {
+          crossAlign: "near",
+        },
       },
     },
     plugins: {
