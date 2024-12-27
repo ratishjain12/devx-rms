@@ -34,7 +34,7 @@ const ProjectsChart: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
   const { theme } = useTheme();
-  const isDarkMode = theme === "dark";
+  const isDarkMode = theme === "dark" || theme === "system";
   useEffect(() => {
     setIsClient(true);
   }, []);

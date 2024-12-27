@@ -50,7 +50,7 @@ const EmployeeUtilizationChart: React.FC = () => {
     overUtilizedEmployees[]
   >([]);
   const { theme } = useTheme();
-  const isDarkMode = theme === "dark";
+  const isDarkMode = theme === "dark" || theme === "system";
   useEffect(() => {
     setIsClient(true);
   }, []);
