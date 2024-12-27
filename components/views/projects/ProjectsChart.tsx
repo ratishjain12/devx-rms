@@ -65,17 +65,15 @@ const ProjectsChart: React.FC = () => {
     project: Project,
     requirement: ProjectRequirement
   ): number => {
-    // Find employees assigned to this requirement based on role, designation, and dates
     const relevantAssignments = project.assignments.filter(
       (assignment) =>
         assignment.employee.roles.includes(requirement.role.name) &&
         assignment.employee.seniority === requirement.seniority &&
-        // Ensure the employee's dates encompass the requirement's start and end dates
         new Date(assignment.startDate) <= new Date(requirement.startDate) &&
         new Date(assignment.endDate) >= new Date(requirement.endDate)
     );
 
-    const assignedCount = relevantAssignments.length; // Count of employees assigned to the requirement
+    const assignedCount = relevantAssignments.length;
 
     if (assignedCount < requirement.quantity) {
       return 3; // Blue: Underfilled
@@ -87,41 +85,65 @@ const ProjectsChart: React.FC = () => {
 
   const prepareChartData = () => {
     const datasets = projects.map((project) => {
+      const currentEndDate = new Date(
+        new Date().setMonth(new Date().getMonth() + 6)
+      ).toISOString();
+
+      if (
+        !project.projectRequirements ||
+        project.projectRequirements.length === 0
+      ) {
+        const hasAssignments = project.assignments.length > 0;
+        return {
+          label: project.name,
+          data: [
+            {
+              x: [project.startDate, project.endDate || currentEndDate],
+              y: project.name,
+              aggregatedRequirements: [],
+            },
+          ],
+          backgroundColor: hasAssignments ? "#F44336" : "#E0E0E0",
+          barPercentage: 0.3,
+          categoryPercentage: 1,
+        };
+      }
+
       const aggregatedRequirements = project.projectRequirements.map(
         (requirement) => {
           const status = getRequirementStatus(project, requirement);
           return {
             role: requirement.role.name,
-            designation: requirement.seniority, // Include designation
+            designation: requirement.seniority,
             required: requirement.quantity,
             assigned: project.assignments.filter((assignment) =>
               assignment.employee.roles.includes(requirement.role.name)
-            ).length, // Count of employees assigned to this requirement
+            ).length,
             status,
           };
         }
       );
 
-      // Determine overall project status based on requirements
       const overallStatus = aggregatedRequirements.some(
-        (req) => req.status === 2 // If any requirement is overfilled
+        (req) => req.status === 2
       )
-        ? "#F44336" // Red: Overfilled
+        ? "#F44336"
         : aggregatedRequirements.some((req) => req.status === 3)
-        ? "#2196F3" // Blue: Underfilled
-        : "#4CAF50"; // Green: All requirements met
+        ? "#2196F3"
+        : "#4CAF50";
 
       return {
         label: project.name,
         data: [
           {
-            x: [project.startDate, project.endDate], // Timeline range
-            y: project.name, // Project name for y-axis
-            aggregatedRequirements, // Pass aggregated requirements for tooltips
+            x: [project.startDate, project.endDate || currentEndDate],
+            y: project.name,
+            aggregatedRequirements,
           },
         ],
-        backgroundColor: overallStatus, // Set the color based on the overall status
-        borderWidth: 1,
+        backgroundColor: overallStatus,
+        barPercentage: 0.3,
+        categoryPercentage: 1,
       };
     });
 
@@ -142,6 +164,7 @@ const ProjectsChart: React.FC = () => {
             week: "MMM d",
           },
         },
+        position: "top",
         title: {
           display: true,
           text: "Timeline",
@@ -152,7 +175,7 @@ const ProjectsChart: React.FC = () => {
           1
         ).toISOString(),
         max: new Date(
-          new Date().setMonth(new Date().getMonth() + 3)
+          new Date().setMonth(new Date().getMonth() + 6)
         ).toISOString(),
       },
       y: {
@@ -162,11 +185,12 @@ const ProjectsChart: React.FC = () => {
           display: true,
           text: "Projects",
         },
+        stacked: true,
       },
     },
     plugins: {
       legend: {
-        position: "top",
+        display: true,
       },
       title: {
         display: true,
@@ -175,9 +199,10 @@ const ProjectsChart: React.FC = () => {
       tooltip: {
         callbacks: {
           label: (tooltipItem: any) => {
-            const data = tooltipItem.raw; // Access raw data for the tooltip
+            const data = tooltipItem.raw;
             const aggregatedRequirements = data.aggregatedRequirements;
-
+            const projectStartDate = new Date(data.x[0]);
+            const projectEndDate = new Date(data.x[1]);
             const requirementsDetails = aggregatedRequirements.map(
               (req: any) =>
                 `Role: ${req.role}, Designation: ${
@@ -193,31 +218,26 @@ const ProjectsChart: React.FC = () => {
                 }`
             );
 
-            return [`Project: ${data.y}`, ...requirementsDetails];
+            return [
+              `Project: ${data.y}`,
+              `Start Date: ${projectStartDate.toLocaleDateString()}`,
+              `End Date: ${projectEndDate.toLocaleDateString()}`,
+              ...requirementsDetails,
+            ];
           },
         },
       },
     },
   };
 
-  if (!isClient) {
-    return <div>Loading...</div>;
-  }
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
-
-  if (projects.length === 0) {
-    return <div>No data available</div>;
-  }
+  if (!isClient) return <div>Loading...</div>;
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (projects.length === 0) return <div>No data available</div>;
 
   return (
     <div
+      className="w-full"
       style={{
         height: "600px",
         overflowY: "auto",

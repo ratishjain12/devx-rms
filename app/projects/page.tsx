@@ -377,7 +377,6 @@ export default function Projects() {
                 <TableCell>{project.status}</TableCell>
                 <TableCell>{project.type}</TableCell>
                 <TableCell>{project.client_satisfaction}</TableCell>
-
                 <TableCell>
                   {new Date(project.startDate).toLocaleDateString()}
                 </TableCell>
@@ -506,7 +505,6 @@ export default function Projects() {
                       : null
                   )
                 }
-                required
               />
             </div>
             <div>

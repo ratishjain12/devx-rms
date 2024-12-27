@@ -175,10 +175,12 @@ const EmployeeUtilizationChart: React.FC = () => {
         return {
           label: employeeName,
           data: utilizationData,
-          borderWidth: 1,
+
           backgroundColor: utilizationData.map(
             (entry) => entry.backgroundColor
           ),
+          categoryPercentage: 1,
+          barPercentage: 0.3,
         };
       }
     );
@@ -218,6 +220,7 @@ const EmployeeUtilizationChart: React.FC = () => {
             week: "MMM d",
           },
         },
+        position: "top",
         title: {
           display: true,
           text: "Timeline",
@@ -229,7 +232,7 @@ const EmployeeUtilizationChart: React.FC = () => {
           1
         ).toISOString(),
         max: new Date(
-          new Date().setMonth(new Date().getMonth() + 12)
+          new Date().setMonth(new Date().getMonth() + 6)
         ).toISOString(),
       },
       y: {
@@ -274,7 +277,7 @@ const EmployeeUtilizationChart: React.FC = () => {
     <div>
       <div
         style={{
-          height: "600px",
+          height: "600px ",
           overflowY: "auto",
           overflowX: "scroll",
         }}
