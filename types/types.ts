@@ -27,13 +27,3 @@ export interface AnalyticsData {
   topOverlappingEmployees: { name: string; overlaps: number }[] | null;
   overworkedEmployees: OverworkedEmployee[] | null;
 }
-
-export interface Skill {
-  id: number;
-  name: string;
-}
-
-export interface Role {
-  id: number;
-  name: string;
-}

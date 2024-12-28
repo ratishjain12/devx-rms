@@ -30,7 +30,7 @@ export interface Assignment {
   projectId: number;
   startDate: string;
   endDate: string;
-  utilization: number;
+  utilisation: number;
   employee: Employee;
   project: Project;
 }
