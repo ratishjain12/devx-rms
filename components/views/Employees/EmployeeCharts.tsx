@@ -242,6 +242,9 @@ const EmployeeUtilizationChart: React.FC = () => {
         ticks: {
           color: isDarkMode ? "#FFFFFF" : "#000000",
         },
+        grid: {
+          color: isDarkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)",
+        },
       },
       y: {
         type: "category",
