@@ -540,6 +540,38 @@ export default function Assign() {
                     ))}
                 </SelectContent>
               </Select>
+              {editingAssignment?.projectId && (
+                <div className="mt-2 p-2 border rounded-md">
+                  <div>
+                    <strong>Start Date:</strong>{" "}
+                    {editingAssignment?.projectId &&
+                      new Date(
+                        projects.find(
+                          (p) => p.id === editingAssignment.projectId
+                        )?.startDate || ""
+                      ).toLocaleDateString()}
+                  </div>
+                  <div>
+                    <strong>End Date:</strong>{" "}
+                    {editingAssignment?.projectId &&
+                      new Date(
+                        projects.find(
+                          (p) => p.id === editingAssignment.projectId
+                        )?.endDate || ""
+                      ).toLocaleDateString()}
+                  </div>
+                  <div>
+                    <strong>Requirements:</strong>{" "}
+                    {projects
+                      .find((p) => p.id === editingAssignment.projectId)
+                      ?.projectRequirements.map((req) => (
+                        <div key={req.id}>
+                          {req.role.name} - ({req.seniority})- ({req.quantity})
+                        </div>
+                      )) || "No specific requirements"}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <Label htmlFor="startDate">Start Date</Label>
