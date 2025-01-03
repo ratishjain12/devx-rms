@@ -21,7 +21,6 @@ export function ResourceBar({
     transform: CSS.Transform.toString(transform),
     transition,
     width: `${width}%`,
-    minWidth: "100px",
   };
 
   return (
@@ -30,7 +29,7 @@ export function ResourceBar({
       style={style}
       {...attributes}
       {...listeners}
-      className="h-full bg-blue-500 border-r border-blue-600 last:border-r-0 flex items-center justify-center text-white text-xs cursor-move overflow-hidden"
+      className="h-full relative z-10 bg-white border  border-black flex items-center justify-center  text-xs cursor-move overflow-hidden"
       title={`${assignment.employee.name} (${assignment.utilisation.toFixed(
         0
       )}%)`}

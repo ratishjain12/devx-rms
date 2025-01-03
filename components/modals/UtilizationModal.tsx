@@ -1,39 +1,66 @@
 import React, { useState } from "react";
-import { Assignment, Employee } from "@/types/models";
+import { Assignment, Employee, Project } from "@/types/models";
 
 interface UtilizationModalProps {
   assignment: Assignment;
-  onConfirm: (employee: Employee, utilization: number) => void;
+  fromProject: Project;
+  toProject: Project;
+  onConfirm: (
+    employee: Employee,
+    newUtilization: number,
+    previousUtilization: number
+  ) => void;
   onClose: () => void;
 }
 
 export function UtilizationModal({
   assignment,
+  fromProject,
+  toProject,
   onConfirm,
   onClose,
 }: UtilizationModalProps) {
-  const [utilization, setUtilization] = useState(assignment.utilisation);
+  const [newUtilization, setNewUtilization] = useState(assignment.utilisation);
+  const [previousUtilization, setPreviousUtilization] = useState(
+    assignment.utilisation
+  );
 
   const handleConfirm = () => {
-    onConfirm(assignment.employee, utilization);
+    onConfirm(assignment.employee, newUtilization, previousUtilization);
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white p-6 rounded-lg w-96">
+    <div className="fixed inset-0 z-40 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white p-6 rounded-lg w-[32rem] max-w-full">
         <h2 className="text-xl font-bold mb-4">Set Resource Utilization</h2>
         <p className="mb-4">
-          Assign {assignment.employee.name} to the new project:
+          Assign {assignment.employee.name} from {fromProject.name} to{" "}
+          {toProject.name} :
         </p>
         <div className="mb-4">
-          <label htmlFor="utilization" className="block mb-2">
-            Utilization Percentage:
+          <label htmlFor="previousUtilization" className="block mb-2">
+            Previous Utilization in {fromProject.name} :
           </label>
           <input
             type="number"
-            id="utilization"
-            value={utilization}
-            onChange={(e) => setUtilization(Number(e.target.value))}
+            id="previousUtilization"
+            value={previousUtilization}
+            onChange={(e) => setPreviousUtilization(Number(e.target.value))}
+            className="w-full p-2 border border-gray-300 rounded"
+            min="0"
+            max="1"
+            step="0.1"
+          />
+        </div>
+        <div className="mb-4">
+          <label htmlFor="newUtilization" className="block mb-2">
+            New Utilization in {toProject.name}:
+          </label>
+          <input
+            type="number"
+            id="newUtilization"
+            value={newUtilization}
+            onChange={(e) => setNewUtilization(Number(e.target.value))}
             className="w-full p-2 border border-gray-300 rounded"
             min="0"
             max="1"

@@ -14,7 +14,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { addWeeks, startOfWeek, endOfWeek, addMonths } from "date-fns";
+import { addWeeks, startOfWeek, endOfWeek, max, min } from "date-fns";
 import { ProjectBar } from "./ProjectBar";
 import { TimelineHeader } from "./TimelineHeader";
 import { UtilizationModal } from "../modals/UtilizationModal";
@@ -23,7 +23,7 @@ import { Project, Employee, Assignment } from "@/types/models";
 const calculateWeeks = (start: Date, end: Date): Date[] => {
   const weeks: Date[] = [];
   let currentWeek = start;
-  while (currentWeek < end) {
+  while (currentWeek <= end) {
     weeks.push(currentWeek);
     currentWeek = addWeeks(currentWeek, 1);
   }
@@ -32,13 +32,17 @@ const calculateWeeks = (start: Date, end: Date): Date[] => {
 
 export function GanttChart() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const timelineStart = useMemo(() => startOfWeek(new Date()), []);
-  const timelineEnd = useMemo(() => endOfWeek(addMonths(new Date(), 6)), []);
+  const [timelineStart, setTimelineStart] = useState<Date>(
+    startOfWeek(new Date())
+  );
+  const [timelineEnd, setTimelineEnd] = useState<Date>(
+    endOfWeek(addWeeks(new Date(), 23))
+  ); // 24 weeks (about 6 months)
   const [showUtilizationModal, setShowUtilizationModal] = useState(false);
   const [movedAssignment, setMovedAssignment] = useState<{
     assignment: Assignment;
-    fromProjectId: number;
-    toProjectId: number;
+    fromProject: Project;
+    toProject: Project;
   } | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -54,6 +58,20 @@ export function GanttChart() {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    if (projects.length > 0) {
+      const projectStartDates = projects.map((p) => new Date(p.startDate));
+      const projectEndDates = projects.map((p) =>
+        p.endDate ? new Date(p.endDate) : timelineEnd
+      );
+      const earliestStart = min(projectStartDates);
+      const latestEnd = max(projectEndDates);
+
+      setTimelineStart(startOfWeek(earliestStart));
+      setTimelineEnd(endOfWeek(max([latestEnd, addWeeks(earliestStart, 23)])));
+    }
+  }, [projects]);
 
   const fetchProjects = async () => {
     try {
@@ -83,8 +101,8 @@ export function GanttChart() {
         if (assignment) {
           setMovedAssignment({
             assignment,
-            fromProjectId,
-            toProjectId,
+            fromProject,
+            toProject,
           });
           setShowUtilizationModal(true);
         }
@@ -94,31 +112,57 @@ export function GanttChart() {
 
   const handleUtilizationConfirm = (
     employee: Employee,
-    utilization: number
+    newUtilization: number,
+    previousUtilization: number
   ) => {
     if (movedAssignment) {
       setProjects((prevProjects) => {
         return prevProjects.map((project) => {
-          if (project.id === movedAssignment.fromProjectId) {
-            return {
-              ...project,
-              assignments: project.assignments.filter(
-                (a) => a.id !== movedAssignment.assignment.id
-              ),
-            };
+          if (project.id === movedAssignment.fromProject.id) {
+            if (previousUtilization > 0) {
+              return {
+                ...project,
+                assignments: project.assignments.map((a) =>
+                  a.id === movedAssignment.assignment.id
+                    ? { ...a, utilisation: previousUtilization }
+                    : a
+                ),
+              };
+            } else {
+              return {
+                ...project,
+                assignments: project.assignments.filter(
+                  (a) => a.id !== movedAssignment.assignment.id
+                ),
+              };
+            }
           }
-          if (project.id === movedAssignment.toProjectId) {
-            return {
-              ...project,
-              assignments: [
-                ...project.assignments,
-                {
-                  ...movedAssignment.assignment,
-                  utilisation: utilization,
-                  projectId: project.id,
-                },
-              ],
-            };
+          if (project.id === movedAssignment.toProject.id) {
+            const existingAssignment = project.assignments.find(
+              (a) => a.id === movedAssignment.assignment.id
+            );
+            if (existingAssignment) {
+              return {
+                ...project,
+                assignments: project.assignments.map((a) =>
+                  a.id === movedAssignment.assignment.id
+                    ? { ...a, utilisation: newUtilization }
+                    : a
+                ),
+              };
+            } else {
+              return {
+                ...project,
+                assignments: [
+                  ...project.assignments,
+                  {
+                    ...movedAssignment.assignment,
+                    utilisation: newUtilization,
+                    projectId: project.id,
+                  },
+                ],
+              };
+            }
           }
           return project;
         });
@@ -150,7 +194,9 @@ export function GanttChart() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Project Timeline</h1>
+      <h1 className="text-2xl font-bold mb-4">
+        Project Timeline (Weekly View)
+      </h1>
       <TimelineHeader weeks={weeks} />
       <DndContext
         sensors={sensors}
@@ -165,7 +211,12 @@ export function GanttChart() {
         >
           <div className="space-y-2">
             {projects.map((project) => (
-              <ProjectBar key={project.id} project={project} weeks={weeks} />
+              <ProjectBar
+                key={project.id}
+                project={project}
+                timelineStart={timelineStart}
+                timelineEnd={timelineEnd}
+              />
             ))}
           </div>
         </SortableContext>
@@ -173,6 +224,8 @@ export function GanttChart() {
       {showUtilizationModal && movedAssignment && (
         <UtilizationModal
           assignment={movedAssignment.assignment}
+          fromProject={movedAssignment.fromProject}
+          toProject={movedAssignment.toProject}
           onConfirm={handleUtilizationConfirm}
           onClose={() => {
             setShowUtilizationModal(false);
