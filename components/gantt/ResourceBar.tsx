@@ -1,3 +1,4 @@
+// ResourceBar.tsx
 import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -29,17 +30,22 @@ export function ResourceBar({
       style={style}
       {...attributes}
       {...listeners}
-      className="h-full relative z-10 bg-white border  border-black flex items-center justify-center  text-xs cursor-move overflow-hidden"
-      title={`${assignment.employee.name} (${assignment.utilisation.toFixed(
-        0
-      )}%)`}
+      className="h-full relative z-10 bg-white border border-blue-300 flex items-center justify-center text-xs cursor-move overflow-hidden group"
+      title={`${assignment.employee.name} (${assignment.utilisation}%)`}
     >
-      {assignment.employee.name.split(" ").map((word, index) => (
-        <React.Fragment key={index}>
-          {word}
-          {index < assignment.employee.name.split(" ").length - 1 && <br />}
-        </React.Fragment>
-      ))}
+      <div className="px-1 py-0.5 text-center">
+        <div className="font-medium truncate">
+          {assignment.employee.name.split(" ").map((word, index) => (
+            <React.Fragment key={index}>
+              {word}
+              {index < assignment.employee.name.split(" ").length - 1 && <br />}
+            </React.Fragment>
+          ))}
+        </div>
+        <div className="text-gray-500 text-[10px]">
+          {assignment.utilisation}%
+        </div>
+      </div>
     </div>
   );
 }

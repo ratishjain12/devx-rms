@@ -1,10 +1,11 @@
 // ProjectBar.tsx
 import React from "react";
-import { addDays, differenceInWeeks } from "date-fns";
+import { format, differenceInWeeks, addDays } from "date-fns";
 import { Project } from "@/types/models";
 import { ResourceBar } from "./ResourceBar";
 import { PlusCircle } from "lucide-react";
 
+// Update ProjectBar calculation
 interface ProjectBarProps {
   project: Project;
   timelineStart: Date;
@@ -22,38 +23,60 @@ export function ProjectBar({
 }: ProjectBarProps) {
   const startDate = new Date(project.startDate);
   const endDate = project.endDate ? new Date(project.endDate) : timelineEnd;
-  const projectStart = differenceInWeeks(startDate, timelineStart);
-  const projectEnd = differenceInWeeks(endDate, timelineStart);
-  const projectDuration = projectEnd - projectStart;
-  const totalWeeks = differenceInWeeks(timelineEnd, timelineStart) + 1;
 
-  const isInWeek =
-    selectedWeek &&
-    startDate <= addDays(selectedWeek, 6) &&
-    endDate >= selectedWeek;
+  // Calculate week-based positions
+  const totalWeeks = differenceInWeeks(timelineEnd, timelineStart) + 1;
+  const projectStartOffset = Math.max(
+    0,
+    differenceInWeeks(startDate, timelineStart)
+  );
+  const projectEndOffset = Math.min(
+    totalWeeks,
+    differenceInWeeks(endDate, timelineStart) + 1
+  );
+
+  const startPercentage = (projectStartOffset / totalWeeks) * 100;
+  const widthPercentage =
+    ((projectEndOffset - projectStartOffset) / totalWeeks) * 100;
 
   return (
-    <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm mb-2">
-      <div className="w-1/4 px-4 py-2 flex items-center justify-between">
-        <span className="font-semibold truncate" title={project.name}>
-          {project.name}
-        </span>
-        <button
-          onClick={() => onAddAssignment(project.id)}
-          className="text-blue-500 hover:text-blue-600"
-          title="Add Assignment"
-        >
-          <PlusCircle size={20} />
-        </button>
+    <div className="flex border-b hover:bg-gray-50">
+      <div className="w-48 flex-shrink-0 p-4 border-r bg-white">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="font-medium truncate" title={project.name}>
+              {project.name}
+            </h3>
+            <span className="text-xs text-gray-500 block truncate">
+              {format(startDate, "MMM d")} - {format(endDate, "MMM d")}
+            </span>
+          </div>
+          <button
+            onClick={() => onAddAssignment(project.id)}
+            className="flex-shrink-0 text-blue-500 hover:text-blue-600 p-1"
+            title="Add Assignment"
+          >
+            <PlusCircle size={16} />
+          </button>
+        </div>
       </div>
-      <div className="w-3/4 relative" style={{ height: "60px" }}>
+
+      <div
+        className="flex-1 relative h-16"
+        style={{ minWidth: `${120 * totalWeeks}px` }}
+      >
         <div
-          className={`absolute top-0 h-full ${
-            isInWeek ? "bg-blue-200" : "bg-blue-100"
-          }`}
+          className={`absolute top-0 h-full transition-colors 
+            ${
+              selectedWeek &&
+              startDate <= addDays(selectedWeek, 6) &&
+              endDate >= selectedWeek
+                ? "bg-blue-100"
+                : "bg-gray-50"
+            } border border-blue-200`}
           style={{
-            left: `${(projectStart / totalWeeks) * 100}%`,
-            width: `${(projectDuration / totalWeeks) * 100}%`,
+            left: `${startPercentage}%`,
+            width: `${widthPercentage}%`,
           }}
         >
           <div className="flex h-full">
@@ -62,7 +85,7 @@ export function ProjectBar({
                 key={assignment.id}
                 assignment={assignment}
                 projectId={project.id}
-                width={100 / project.assignments.length}
+                width={100 / Math.max(1, project.assignments.length)}
               />
             ))}
           </div>

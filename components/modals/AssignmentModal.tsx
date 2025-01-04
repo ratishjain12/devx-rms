@@ -1,10 +1,19 @@
 // AssignmentModal.tsx
 import React, { useState } from "react";
-import { Employee, Project } from "@/types/models";
+import { Project } from "@/types/models";
+
+interface AvailableEmployee {
+  id: number;
+  name: string;
+  seniority: string;
+  skills: string[];
+  currentUtilization: number;
+  availableUtilization: number;
+}
 
 interface AssignmentModalProps {
   project: Project;
-  availableEmployees: Employee[];
+  availableEmployees: AvailableEmployee[]; // Changed from Employee[] to AvailableEmployee[]
   onConfirm: (
     projectId: number,
     employeeId: number,
@@ -29,7 +38,7 @@ export function AssignmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-40 bg-black bg-opacity-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
       <div className="bg-white p-6 rounded-lg w-[32rem] max-w-full">
         <h2 className="text-xl font-bold mb-4">
           Add Assignment to {project.name}
@@ -44,7 +53,7 @@ export function AssignmentModal({
             <option value="">Select an employee</option>
             {availableEmployees.map((employee) => (
               <option key={employee.id} value={employee.id}>
-                {employee.name}
+                {employee.name} ({employee.availableUtilization}% available)
               </option>
             ))}
           </select>

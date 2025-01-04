@@ -1,3 +1,4 @@
+// GanttChart.tsx
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -34,16 +35,22 @@ interface TempAssignment {
 }
 
 const calculateTimelineWeeks = (): Date[] => {
+  // Get the first day of the current month
   const today = new Date();
-  const start = startOfWeek(subWeeks(today, 12));
-  const end = startOfWeek(addWeeks(today, 24));
+  const currentWeek = startOfWeek(today);
+
+  // Calculate 3 weeks back and 10 weeks forward
+  const start = subWeeks(currentWeek, 3);
+  const end = addWeeks(currentWeek, 10);
 
   const weeks: Date[] = [];
-  let currentWeek = start;
-  while (currentWeek <= end) {
-    weeks.push(currentWeek);
-    currentWeek = addWeeks(currentWeek, 1);
+  let currentDate = start;
+
+  while (currentDate <= end) {
+    weeks.push(currentDate);
+    currentDate = addWeeks(currentDate, 1);
   }
+
   return weeks;
 };
 
@@ -100,11 +107,26 @@ export function GanttChart() {
     }
   };
 
+  const handleAddAssignment = (projectId: number) => {
+    if (!selectedWeek) {
+      alert("Please select a week first to add an assignment");
+      return;
+    }
+
+    const project = projects.find((p) => p.id === projectId);
+    if (project) {
+      setSelectedProject(project);
+      setShowAssignmentModal(true);
+    }
+  };
+
   const handleAssignmentConfirm = async (
     projectId: number,
     employeeId: number,
     utilization: number
   ) => {
+    if (!selectedWeek) return;
+
     try {
       const response = await fetch("/api/assignments", {
         method: "POST",
@@ -112,9 +134,9 @@ export function GanttChart() {
         body: JSON.stringify({
           projectId,
           employeeId,
-          utilization,
-          startDate: selectedWeek?.toISOString(),
-          endDate: addDays(selectedWeek!, 6).toISOString(),
+          startDate: selectedWeek.toISOString(),
+          endDate: addDays(selectedWeek, 6).toISOString(),
+          utilisation: utilization,
         }),
       });
 
@@ -129,13 +151,6 @@ export function GanttChart() {
     }
   };
 
-  const handleAddAssignment = (projectId: number) => {
-    const project = projects.find((p) => p.id === projectId);
-    if (project) {
-      setSelectedProject(project);
-      setShowAssignmentModal(true);
-    }
-  };
   const handleUtilizationConfirm = (
     employee: Employee,
     newUtilization: number,
@@ -253,46 +268,82 @@ export function GanttChart() {
     }
   };
 
+  // GanttChart.tsx - update the return section
   return (
-    <div className="container mx-auto p-4">
-      <TimelineHeader
-        weeks={weeks}
-        selectedWeek={selectedWeek}
-        onSelectWeek={handleWeekSelect}
-      />
+    <div className=" mx-auto p-4">
+      {selectedWeek && (
+        <div className="border-b">
+          <AvailableEmployeesList
+            employees={availableEmployees}
+            weekRange={{
+              start: selectedWeek,
+              end: addDays(selectedWeek, 6),
+            }}
+          />
+        </div>
+      )}
+      <div className="border rounded-lg bg-white shadow">
+        {/* Timeline Header */}
+        <div className="sticky top-0 z-10 bg-white border-b">
+          <TimelineHeader
+            weeks={weeks}
+            selectedWeek={selectedWeek}
+            onSelectWeek={handleWeekSelect}
+          />
+        </div>
 
-      <div className="flex space-x-4">
-        <div className="flex-grow">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={projects.flatMap((p) =>
-                p.assignments.map((a) => `${p.id}-${a.id}`)
-              )}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-2">
-                {projects.map((project) => (
-                  <ProjectBar
-                    key={project.id}
-                    project={project}
-                    timelineStart={timelineStart}
-                    timelineEnd={timelineEnd}
-                    onAddAssignment={handleAddAssignment}
-                    selectedWeek={selectedWeek}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+        {/* Available Employees Section */}
 
+        {/* Main Timeline Content */}
+        <div className="relative">
+          {/* Timeline grid background */}
+          <div className="absolute inset-0 flex pointer-events-none">
+            {weeks.map((week) => (
+              <div
+                key={week.toISOString()}
+                className="min-w-[120px] border-r border-gray-100"
+              />
+            ))}
+          </div>
+
+          {/* Project list and timeline */}
+          <div className="relative">
+            <div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={projects.flatMap((p) =>
+                    p.assignments.map((a) => `${p.id}-${a.id}`)
+                  )}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div>
+                    {projects.map((project) => (
+                      <ProjectBar
+                        key={project.id}
+                        project={project}
+                        timelineStart={timelineStart}
+                        timelineEnd={timelineEnd}
+                        onAddAssignment={handleAddAssignment}
+                        selectedWeek={selectedWeek}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 p-4 bg-white border-t mt-auto">
           <button
             onClick={handleSave}
             disabled={!hasUnsavedChanges}
-            className={`mt-4 px-4 py-2 rounded ${
+            className={`px-4 py-2 rounded ${
               hasUnsavedChanges
                 ? "bg-blue-500 text-white hover:bg-blue-600"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
@@ -303,6 +354,7 @@ export function GanttChart() {
         </div>
       </div>
 
+      {/* Modals */}
       {showUtilizationModal && movedAssignment && (
         <UtilizationModal
           assignment={movedAssignment.assignment}
@@ -326,17 +378,6 @@ export function GanttChart() {
             setSelectedProject(null);
           }}
         />
-      )}
-      {selectedWeek && (
-        <div>
-          <AvailableEmployeesList
-            employees={availableEmployees}
-            weekRange={{
-              start: selectedWeek,
-              end: addDays(selectedWeek, 6),
-            }}
-          />
-        </div>
       )}
     </div>
   );

@@ -1,10 +1,12 @@
 // AvailableEmployeesList.tsx
 import React from "react";
 import { format } from "date-fns";
-import { Employee } from "@/types/models";
 
-export interface AvailableEmployee
-  extends Omit<Employee, "currentUtilization" | "availableUtilization"> {
+export interface AvailableEmployee {
+  id: number;
+  name: string;
+  seniority: string;
+  skills: string[];
   currentUtilization: number;
   availableUtilization: number;
 }
@@ -22,21 +24,26 @@ export function AvailableEmployeesList({
   weekRange,
 }: AvailableEmployeesListProps) {
   return (
-    <div className="mt-4 bg-white p-4 rounded-lg shadow">
-      <h2 className="text-lg font-semibold mb-1">Available Employees</h2>
-      <p className="text-sm text-gray-600 mb-4">
-        {format(weekRange.start, "MMM d")} - {format(weekRange.end, "MMM d")}
-      </p>
+    <div className="w-full bg-white p-4 border-b">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h2 className="text-lg font-semibold">Available Employees</h2>
+          <p className="text-sm text-gray-600">
+            {format(weekRange.start, "MMM d")} -{" "}
+            {format(weekRange.end, "MMM d")}
+          </p>
+        </div>
+      </div>
       {employees.length === 0 ? (
         <p className="text-gray-500">
           No employees available for the selected week range.
         </p>
       ) : (
-        <ul className=" flex gap-4 flex-wrap">
+        <div className="flex flex-wrap gap-3">
           {employees.map((employee) => (
-            <li
+            <div
               key={employee.id}
-              className="bg-gray-50 p-3 rounded border border-gray-100 hover:border-blue-200 transition-colors"
+              className="bg-gray-50 p-3 rounded border border-gray-100 hover:border-blue-200 transition-colors flex-grow basis-[250px] max-w-[300px]"
             >
               <div className="flex justify-between items-start">
                 <div>
@@ -59,16 +66,16 @@ export function AvailableEmployeesList({
                   {employee.skills.map((skill, index) => (
                     <span
                       key={index}
-                      className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full"
+                      className="px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded-full"
                     >
                       {skill}
                     </span>
                   ))}
                 </div>
               )}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ interface TimelineHeaderProps {
   onSelectWeek: (week: Date) => void;
 }
 
+// TimelineHeader.tsx
 export function TimelineHeader({
   weeks,
   selectedWeek,
@@ -19,41 +20,37 @@ export function TimelineHeader({
   };
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Project Timeline</h2>
-        <select className="p-2 border rounded-md">
-          <option>View by Week</option>
-          <option>View by Month</option>
-        </select>
+    <div className="flex">
+      <div className="w-48 flex-shrink-0 p-4 border-r bg-gray-50">
+        <div className="font-semibold">Project Name</div>
       </div>
-      <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
-        <div className="flex min-w-max">
-          <div className="w-48 flex-shrink-0 p-4 bg-gray-50 border-r border-gray-200">
-            Project Name
-          </div>
-          <div className="flex flex-1">
-            {weeks.map((week) => (
+
+      <div className="flex-1" style={{ minWidth: `${120 * weeks.length}px` }}>
+        <div className="flex">
+          {weeks.map((week) => (
+            <div
+              key={week.toISOString()}
+              className="border-r border-gray-200"
+              style={{ width: "120px" }}
+            >
               <button
-                key={week.toISOString()}
                 onClick={() => onSelectWeek(week)}
-                className={`
-                  min-w-[120px] p-2 text-sm border-r border-gray-200 
-                  hover:bg-blue-50 transition-colors duration-150
+                className={`w-full p-2 text-sm transition-colors duration-150
                   ${
                     selectedWeek?.toISOString() === week.toISOString()
                       ? "bg-blue-100 font-medium"
-                      : "bg-white"
-                  }
-                `}
+                      : "hover:bg-blue-50 bg-white"
+                  }`}
               >
-                <div className="whitespace-nowrap">{formatWeekRange(week)}</div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="whitespace-nowrap text-center">
+                  {formatWeekRange(week)}
+                </div>
+                <div className="text-xs text-gray-500 mt-1 text-center">
                   Week {format(week, "w")}
                 </div>
               </button>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
