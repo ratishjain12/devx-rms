@@ -116,17 +116,22 @@ export function GanttChart() {
       console.error("Failed to fetch employees:", error);
     }
   };
-  const handleWeekSelect = async (week: Date) => {
+  const handleWeekSelect = async (week: Date | null) => {
     setSelectedWeek(week);
-    try {
-      const weekEnd = addDays(week, 6);
-      const response = await fetch(
-        `/api/employees/available?startDate=${week.toISOString()}&endDate=${weekEnd.toISOString()}&availabilityThreshold=80`
-      );
-      const data = await response.json();
-      setAvailableEmployees(data);
-    } catch (error) {
-      console.error("Failed to fetch available employees:", error);
+    if (week) {
+      try {
+        const weekEnd = addDays(week, 6);
+        const response = await fetch(
+          `/api/employees/available?startDate=${week.toISOString()}&endDate=${weekEnd.toISOString()}&availabilityThreshold=80`
+        );
+        const data = await response.json();
+        setAvailableEmployees(data);
+      } catch (error) {
+        console.error("Failed to fetch available employees:", error);
+      }
+    } else {
+      // Clear available employees when deselecting
+      setAvailableEmployees([]);
     }
   };
 
