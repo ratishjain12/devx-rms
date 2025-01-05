@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarHeader,
   SidebarMenu,
@@ -17,7 +16,6 @@ import {
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ModeToggle } from "./ui/theme-toggle";
 
 // This is sample data.
 const data = {
@@ -127,9 +125,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="items-end">
-        <ModeToggle />
-      </SidebarFooter>
     </Sidebar>
   );
 }
