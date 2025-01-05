@@ -66,7 +66,8 @@ export function ProjectBar({
               {project.name}
             </h3>
             <span className="text-xs text-gray-500 block truncate">
-              {format(startDate, "MMM d")} - {format(endDate, "MMM d")}
+              {format(project.startDate, "MMM d")} -{" "}
+              {project.endDate ? format(project.endDate, "MMM d") : "Ongoing"}
             </span>
           </div>
           <button
