@@ -26,12 +26,22 @@ import {
 } from "./AvailableEmployeesList";
 import { Project, Employee, Assignment } from "@/types/models";
 
-interface TempAssignment {
+interface TempMovedAssignment {
+  type: "moved";
   fromProjectId: number;
   toProjectId: number;
   assignment: Assignment;
   previousUtilization: number;
   newUtilization: number;
+}
+
+interface TempNewAssignment {
+  type: "new";
+  projectId: number;
+  employeeId: number;
+  startDate: string;
+  endDate: string;
+  utilisation: number;
 }
 
 const calculateTimelineWeeks = (): Date[] => {
@@ -54,6 +64,8 @@ const calculateTimelineWeeks = (): Date[] => {
   return weeks;
 };
 
+type TempAssignment = TempNewAssignment | TempMovedAssignment;
+
 export function GanttChart() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<Date | null>(null);
@@ -63,6 +75,7 @@ export function GanttChart() {
   const [availableEmployees, setAvailableEmployees] = useState<
     AvailableEmployee[]
   >([]);
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [tempAssignments, setTempAssignments] = useState<TempAssignment[]>([]);
   const [movedAssignment, setMovedAssignment] = useState<{
     assignment: Assignment;
@@ -81,6 +94,7 @@ export function GanttChart() {
 
   useEffect(() => {
     fetchProjects();
+    fetchAllEmployees();
   }, []);
 
   const fetchProjects = async () => {
@@ -93,6 +107,15 @@ export function GanttChart() {
     }
   };
 
+  const fetchAllEmployees = async () => {
+    try {
+      const response = await fetch("/api/employees");
+      const data = await response.json();
+      setAllEmployees(data);
+    } catch (error) {
+      console.error("Failed to fetch employees:", error);
+    }
+  };
   const handleWeekSelect = async (week: Date) => {
     setSelectedWeek(week);
     try {
@@ -108,11 +131,6 @@ export function GanttChart() {
   };
 
   const handleAddAssignment = (projectId: number) => {
-    if (!selectedWeek) {
-      alert("Please select a week first to add an assignment");
-      return;
-    }
-
     const project = projects.find((p) => p.id === projectId);
     if (project) {
       setSelectedProject(project);
@@ -120,67 +138,96 @@ export function GanttChart() {
     }
   };
 
-  const handleAssignmentConfirm = async (
+  const handleAssignmentConfirm = (
     projectId: number,
     employeeId: number,
-    utilization: number
+    utilization: number,
+    startDate: string,
+    endDate: string
   ) => {
-    if (!selectedWeek) return;
+    // Add to temp assignments
+    const newAssignment: TempNewAssignment = {
+      type: "new",
+      projectId,
+      employeeId,
+      startDate,
+      endDate,
+      utilisation: utilization,
+    };
 
-    try {
-      const response = await fetch("/api/assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          employeeId,
-          startDate: selectedWeek.toISOString(),
-          endDate: addDays(selectedWeek, 6).toISOString(),
-          utilisation: utilization,
-        }),
-      });
+    setTempAssignments((prev) => [...prev, newAssignment]);
 
-      if (response.ok) {
-        await fetchProjects();
-        setShowAssignmentModal(false);
-        setSelectedProject(null);
-        setHasUnsavedChanges(true);
-      }
-    } catch (error) {
-      console.error("Failed to create assignment:", error);
+    // Update UI immediately
+    const selectedEmployee = allEmployees.find((e) => e.id === employeeId);
+    if (selectedEmployee) {
+      setProjects((prevProjects) =>
+        prevProjects.map((project) => {
+          if (project.id === projectId) {
+            // Create a temporary assignment for UI
+            const tempUIAssignment: Assignment = {
+              id: -Date.now(), // Temporary negative ID
+              employeeId,
+              projectId,
+              startDate,
+              endDate,
+              utilisation: utilization,
+              employee: selectedEmployee,
+              project: project,
+            };
+
+            return {
+              ...project,
+              assignments: [...project.assignments, tempUIAssignment],
+            };
+          }
+          return project;
+        })
+      );
     }
+
+    setShowAssignmentModal(false);
+    setSelectedProject(null);
+    setHasUnsavedChanges(true);
   };
 
   const handleUtilizationConfirm = (
-    employee: Employee,
     newUtilization: number,
     previousUtilization: number
   ) => {
     if (movedAssignment) {
-      setTempAssignments((prev) => [
-        ...prev,
-        {
-          fromProjectId: movedAssignment.fromProject.id,
-          toProjectId: movedAssignment.toProject.id,
-          assignment: movedAssignment.assignment,
-          previousUtilization,
-          newUtilization,
-        },
-      ]);
+      // Create properly typed moved assignment
+      const tempMovedAssignment: TempMovedAssignment = {
+        type: "moved",
+        fromProjectId: movedAssignment.fromProject.id,
+        toProjectId: movedAssignment.toProject.id,
+        assignment: movedAssignment.assignment,
+        previousUtilization,
+        newUtilization,
+      };
+
+      setTempAssignments((prev) => [...prev, tempMovedAssignment]);
 
       setProjects((prevProjects) =>
         prevProjects.map((project) => {
           if (project.id === movedAssignment.fromProject.id) {
             return {
               ...project,
-              assignments: project.assignments.map((a) =>
-                a.id === movedAssignment.assignment.id
-                  ? { ...a, utilisation: previousUtilization }
-                  : a
-              ),
+              assignments:
+                previousUtilization === 0
+                  ? project.assignments.filter(
+                      (a) => a.id !== movedAssignment.assignment.id
+                    )
+                  : project.assignments.map((a) =>
+                      a.id === movedAssignment.assignment.id
+                        ? { ...a, utilisation: previousUtilization }
+                        : a
+                    ),
             };
           }
-          if (project.id === movedAssignment.toProject.id) {
+          if (
+            project.id === movedAssignment.toProject.id &&
+            newUtilization > 0
+          ) {
             return {
               ...project,
               assignments: [
@@ -202,21 +249,23 @@ export function GanttChart() {
     setShowUtilizationModal(false);
     setMovedAssignment(null);
   };
-
+  // GanttChart.tsx - update handleDragEnd
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (active.id !== over?.id) {
-      const fromProjectId = parseInt(active.id.toString().split("-")[0]);
-      const toProjectId = parseInt(over?.id.toString().split("-")[0] || "");
-      const assignmentId = parseInt(active.id.toString().split("-")[1]);
+    if (active.id !== over?.id && over?.id) {
+      const [fromProjectId, assignmentId] = active.id.toString().split("-");
+      // Extract project ID from the droppable area ID
+      const toProjectId = (over.id as string).replace("project-", "");
 
-      const fromProject = projects.find((p) => p.id === fromProjectId);
-      const toProject = projects.find((p) => p.id === toProjectId);
+      const fromProject = projects.find(
+        (p) => p.id === parseInt(fromProjectId)
+      );
+      const toProject = projects.find((p) => p.id === parseInt(toProjectId));
 
       if (fromProject && toProject) {
         const assignment = fromProject.assignments.find(
-          (a) => a.id === assignmentId
+          (a) => a.id === parseInt(assignmentId)
         );
         if (assignment) {
           setMovedAssignment({
@@ -233,31 +282,53 @@ export function GanttChart() {
   const handleSave = async () => {
     try {
       for (const temp of tempAssignments) {
-        if (temp.previousUtilization > 0) {
-          await fetch(`/api/assignments/${temp.assignment.id}`, {
-            method: "PUT",
+        if (temp.type === "moved") {
+          // Handle moved assignments
+          if (temp.previousUtilization > 0) {
+            await fetch(`/api/assignments/${temp.assignment.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                employeeId: temp.assignment.employeeId,
+                projectId: temp.fromProjectId,
+                startDate: temp.assignment.startDate,
+                endDate: temp.assignment.endDate,
+                utilisation: temp.previousUtilization,
+              }),
+            });
+          } else {
+            await fetch(`/api/assignments/${temp.assignment.id}`, {
+              method: "DELETE",
+            });
+          }
+
+          if (temp.newUtilization > 0) {
+            await fetch("/api/assignments", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                employeeId: temp.assignment.employeeId,
+                projectId: temp.toProjectId,
+                startDate: temp.assignment.startDate,
+                endDate: temp.assignment.endDate,
+                utilisation: temp.newUtilization,
+              }),
+            });
+          }
+        } else if (temp.type === "new") {
+          // Handle new assignments
+          await fetch("/api/assignments", {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              employeeId: temp.assignment.employeeId,
-              projectId: temp.fromProjectId,
-              startDate: temp.assignment.startDate,
-              endDate: temp.assignment.endDate,
-              utilisation: temp.previousUtilization,
+              employeeId: temp.employeeId,
+              projectId: temp.projectId,
+              startDate: temp.startDate,
+              endDate: temp.endDate,
+              utilisation: temp.utilisation,
             }),
           });
         }
-
-        await fetch("/api/assignments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            employeeId: temp.assignment.employeeId,
-            projectId: temp.toProjectId,
-            startDate: temp.assignment.startDate,
-            endDate: temp.assignment.endDate,
-            utilisation: temp.newUtilization,
-          }),
-        });
       }
 
       await fetchProjects();
@@ -267,10 +338,9 @@ export function GanttChart() {
       console.error("Error saving changes:", error);
     }
   };
-
   // GanttChart.tsx - update the return section
   return (
-    <div className=" mx-auto p-4">
+    <div className="mx-auto p-4">
       {selectedWeek && (
         <div className="border-b">
           <AvailableEmployeesList
@@ -284,7 +354,7 @@ export function GanttChart() {
       )}
       <div className="border rounded-lg bg-white shadow">
         {/* Timeline Header */}
-        <div className="sticky top-0 z-10 bg-white border-b">
+        <div className="sticky top-0  bg-white border-b">
           <TimelineHeader
             weeks={weeks}
             selectedWeek={selectedWeek}
@@ -367,11 +437,10 @@ export function GanttChart() {
           }}
         />
       )}
-
       {showAssignmentModal && selectedProject && (
         <AssignmentModal
           project={selectedProject}
-          availableEmployees={availableEmployees}
+          employees={allEmployees} // Changed from availableEmployees
           onConfirm={handleAssignmentConfirm}
           onClose={() => {
             setShowAssignmentModal(false);

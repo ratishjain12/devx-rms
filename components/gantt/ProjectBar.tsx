@@ -1,11 +1,17 @@
 // ProjectBar.tsx
 import React from "react";
-import { format, differenceInWeeks, addDays } from "date-fns";
+import {
+  format,
+  differenceInWeeks,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+} from "date-fns";
 import { Project } from "@/types/models";
 import { ResourceBar } from "./ResourceBar";
 import { PlusCircle } from "lucide-react";
+import { useDroppable } from "@dnd-kit/core";
 
-// Update ProjectBar calculation
 interface ProjectBarProps {
   project: Project;
   timelineStart: Date;
@@ -21,26 +27,38 @@ export function ProjectBar({
   onAddAssignment,
   selectedWeek,
 }: ProjectBarProps) {
-  const startDate = new Date(project.startDate);
-  const endDate = project.endDate ? new Date(project.endDate) : timelineEnd;
+  const startDate = startOfWeek(new Date(project.startDate));
+  const endDate = project.endDate
+    ? endOfWeek(new Date(project.endDate))
+    : timelineEnd;
 
   // Calculate week-based positions
-  const totalWeeks = differenceInWeeks(timelineEnd, timelineStart) + 1;
-  const projectStartOffset = Math.max(
+  const totalWeeks = differenceInWeeks(timelineEnd, timelineStart);
+  const projectStartWeeks = Math.max(
     0,
     differenceInWeeks(startDate, timelineStart)
   );
-  const projectEndOffset = Math.min(
+  const projectEndWeeks = Math.min(
     totalWeeks,
-    differenceInWeeks(endDate, timelineStart) + 1
+    differenceInWeeks(endDate, timelineStart)
   );
+  const projectDuration = projectEndWeeks - projectStartWeeks;
 
-  const startPercentage = (projectStartOffset / totalWeeks) * 100;
-  const widthPercentage =
-    ((projectEndOffset - projectStartOffset) / totalWeeks) * 100;
+  const startPercentage = (projectStartWeeks / totalWeeks) * 100;
+  const widthPercentage = (projectDuration / totalWeeks) * 100;
+
+  const isInWeek =
+    selectedWeek &&
+    startDate <= addDays(selectedWeek, 6) &&
+    endDate >= selectedWeek;
+
+  // Make the entire project bar area droppable
+  const { setNodeRef, isOver } = useDroppable({
+    id: `project-${project.id}`,
+  });
 
   return (
-    <div className="flex border-b hover:bg-gray-50">
+    <div className="flex min-w-max border-b hover:bg-gray-50">
       <div className="w-48 flex-shrink-0 p-4 border-r bg-white">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
@@ -62,21 +80,18 @@ export function ProjectBar({
       </div>
 
       <div
-        className="flex-1 relative h-16"
-        style={{ minWidth: `${120 * totalWeeks}px` }}
+        ref={setNodeRef}
+        className={`flex-1 relative h-16 ${isOver ? "bg-blue-50" : ""}`}
       >
         <div
           className={`absolute top-0 h-full transition-colors 
-            ${
-              selectedWeek &&
-              startDate <= addDays(selectedWeek, 6) &&
-              endDate >= selectedWeek
-                ? "bg-blue-100"
-                : "bg-gray-50"
-            } border border-blue-200`}
+            ${isInWeek ? "bg-blue-100" : "bg-gray-50"}
+            ${isOver ? "border-2 border-blue-400" : "border border-blue-200"}
+          `}
           style={{
             left: `${startPercentage}%`,
             width: `${widthPercentage}%`,
+            minWidth: "2px",
           }}
         >
           <div className="flex h-full">

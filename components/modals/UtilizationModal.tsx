@@ -1,15 +1,12 @@
+// UtilizationModal.tsx
 import React, { useState } from "react";
-import { Assignment, Employee, Project } from "@/types/models";
+import { Assignment, Project } from "@/types/models";
 
 interface UtilizationModalProps {
   assignment: Assignment;
   fromProject: Project;
   toProject: Project;
-  onConfirm: (
-    employee: Employee,
-    newUtilization: number,
-    previousUtilization: number
-  ) => void;
+  onConfirm: (newUtilization: number, previousUtilization: number) => void; // Simplified props
   onClose: () => void;
 }
 
@@ -26,47 +23,71 @@ export function UtilizationModal({
   );
 
   const handleConfirm = () => {
-    onConfirm(assignment.employee, newUtilization, previousUtilization);
+    onConfirm(newUtilization, previousUtilization);
   };
 
   return (
     <div className="fixed inset-0 z-40 bg-black bg-opacity-50 flex items-center justify-center">
       <div className="bg-white p-6 rounded-lg w-[32rem] max-w-full">
-        <h2 className="text-xl font-bold mb-4">Set Resource Utilization</h2>
-        <p className="mb-4">
-          Assign {assignment.employee.name} from {fromProject.name} to{" "}
-          {toProject.name} :
-        </p>
-        <div className="mb-4">
-          <label htmlFor="previousUtilization" className="block mb-2">
-            Previous Utilization in {fromProject.name} :
-          </label>
-          <input
-            type="number"
-            id="previousUtilization"
-            value={previousUtilization}
-            onChange={(e) => setPreviousUtilization(Number(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded"
-            min="0"
-            max="1"
-            step="0.1"
-          />
+        <h2 className="text-xl font-bold mb-4">Update Resource Assignment</h2>
+
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-medium">{assignment.employee.name}</span>
+            <span className="text-sm text-blue-600">
+              {assignment.employee.seniority}
+            </span>
+          </div>
+          <div className="text-sm text-gray-600 mb-4">
+            Moving from {fromProject.name} to {toProject.name}
+          </div>
         </div>
+
         <div className="mb-4">
-          <label htmlFor="newUtilization" className="block mb-2">
-            New Utilization in {toProject.name}:
+          <label
+            htmlFor="previousUtilization"
+            className="block mb-2 font-medium"
+          >
+            Utilization in {fromProject.name}:
           </label>
-          <input
-            type="number"
-            id="newUtilization"
-            value={newUtilization}
-            onChange={(e) => setNewUtilization(Number(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded"
-            min="0"
-            max="1"
-            step="0.1"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              id="previousUtilization"
+              value={previousUtilization}
+              onChange={(e) => setPreviousUtilization(Number(e.target.value))}
+              className="flex-1"
+              min="0"
+              max="100"
+              step="10"
+            />
+            <span className="w-16 text-center bg-gray-100 px-2 py-1 rounded">
+              {previousUtilization}%
+            </span>
+          </div>
         </div>
+
+        <div className="mb-6">
+          <label htmlFor="newUtilization" className="block mb-2 font-medium">
+            Utilization in {toProject.name}:
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              id="newUtilization"
+              value={newUtilization}
+              onChange={(e) => setNewUtilization(Number(e.target.value))}
+              className="flex-1"
+              min="0"
+              max="100"
+              step="10"
+            />
+            <span className="w-16 text-center bg-gray-100 px-2 py-1 rounded">
+              {newUtilization}%
+            </span>
+          </div>
+        </div>
+
         <div className="flex justify-end space-x-2">
           <button
             onClick={onClose}

@@ -24,7 +24,7 @@ export function AvailableEmployeesList({
   weekRange,
 }: AvailableEmployeesListProps) {
   return (
-    <div className="w-full bg-white p-4 border-b">
+    <div className="w-full max-w-[90vw] bg-white p-4 border-b">
       <div className="flex justify-between items-center mb-4">
         <div>
           <h2 className="text-lg font-semibold">Available Employees</h2>
@@ -43,7 +43,7 @@ export function AvailableEmployeesList({
           {employees.map((employee) => (
             <div
               key={employee.id}
-              className="bg-gray-50 p-3 rounded border border-gray-100 hover:border-blue-200 transition-colors flex-grow basis-[250px] max-w-[300px]"
+              className="bg-gray-50 px-3 py-1 rounded border border-gray-100 hover:border-blue-200 transition-colors flex-grow basis-[250px] max-w-[300px]"
             >
               <div className="flex justify-between items-start">
                 <div>

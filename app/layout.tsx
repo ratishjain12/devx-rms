@@ -37,6 +37,7 @@ export default function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="system">
           <SidebarProvider
+            defaultOpen={false}
             style={
               {
                 "--sidebar-width": "19rem",
