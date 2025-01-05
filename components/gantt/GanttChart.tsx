@@ -360,80 +360,72 @@ export function GanttChart() {
       console.error("Error saving changes:", error);
     }
   };
-  // GanttChart.tsx - update the return section
+
+  // Update the grid structure in GanttChart.tsx
   return (
     <div className="mx-auto p-4">
-      {selectedWeek && (
-        <div className="border-b">
-          <AvailableEmployeesList
-            employees={availableEmployees}
-            weekRange={{
-              start: selectedWeek,
-              end: addDays(selectedWeek, 6),
-            }}
-            threshold={availabilityThreshold}
-            onThresholdChange={handleThresholdChange}
-          />
-        </div>
-      )}
       <div className="border rounded-lg bg-white shadow">
-        {/* Timeline Header */}
-        <div className="sticky top-0  bg-white border-b">
-          <TimelineHeader
-            weeks={weeks}
-            selectedWeek={selectedWeek}
-            onSelectWeek={handleWeekSelect}
-          />
-        </div>
-
-        {/* Available Employees Section */}
-
-        {/* Main Timeline Content */}
-        <div className="relative">
-          {/* Timeline grid background */}
-          <div className="absolute inset-0 flex pointer-events-none">
-            {weeks.map((week) => (
-              <div
-                key={week.toISOString()}
-                className="min-w-[120px] border-r border-gray-100"
+        <div className="overflow-x-auto">
+          <div className="min-w-max">
+            {/* Timeline Header */}
+            <div className="sticky top-0  bg-white border-b">
+              <TimelineHeader
+                weeks={weeks}
+                selectedWeek={selectedWeek}
+                onSelectWeek={handleWeekSelect}
               />
-            ))}
-          </div>
+            </div>
 
-          {/* Project list and timeline */}
-          <div className="relative">
-            <div>
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={projects.flatMap((p) =>
-                    p.assignments.map((a) => `${p.id}-${a.id}`)
-                  )}
-                  strategy={verticalListSortingStrategy}
+            {/* Main Timeline Content */}
+            {/* Main Timeline Content in GanttChart.tsx */}
+            <div className="relative">
+              {/* Fixed grid lines */}
+              <div className="absolute inset-0 flex">
+                <div className="w-48 shrink-0 border-r border-gray-200" />
+                <div className="flex flex-1">
+                  {weeks.map((week) => (
+                    <div
+                      key={week.toISOString()}
+                      className="w-[120px] shrink-0 border-r border-gray-200"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Projects Container */}
+              <div className="relative">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
                 >
-                  <div>
-                    {projects.map((project) => (
-                      <ProjectBar
-                        key={project.id}
-                        project={project}
-                        timelineStart={timelineStart}
-                        timelineEnd={timelineEnd}
-                        onAddAssignment={handleAddAssignment}
-                        selectedWeek={selectedWeek}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
+                  <SortableContext
+                    items={projects.flatMap((p) =>
+                      p.assignments.map((a) => `${p.id}-${a.id}`)
+                    )}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div>
+                      {projects.map((project) => (
+                        <ProjectBar
+                          key={project.id}
+                          project={project}
+                          timelineStart={timelineStart}
+                          timelineEnd={timelineEnd}
+                          onAddAssignment={handleAddAssignment}
+                          selectedWeek={selectedWeek}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 p-4 bg-white border-t mt-auto">
+        <div className="sticky bottom-0 p-4 bg-white border-t">
           <button
             onClick={handleSave}
             disabled={!hasUnsavedChanges}
@@ -461,16 +453,30 @@ export function GanttChart() {
           }}
         />
       )}
+
       {showAssignmentModal && selectedProject && (
         <AssignmentModal
           project={selectedProject}
-          employees={allEmployees} // Changed from availableEmployees
+          employees={allEmployees}
           onConfirm={handleAssignmentConfirm}
           onClose={() => {
             setShowAssignmentModal(false);
             setSelectedProject(null);
           }}
         />
+      )}
+      {selectedWeek && (
+        <div className="mb-4 mt-3 max-w-[80vw] border rounded-lg bg-white shadow">
+          <AvailableEmployeesList
+            employees={availableEmployees}
+            weekRange={{
+              start: selectedWeek,
+              end: addDays(selectedWeek, 6),
+            }}
+            threshold={availabilityThreshold}
+            onThresholdChange={handleThresholdChange}
+          />
+        </div>
       )}
     </div>
   );

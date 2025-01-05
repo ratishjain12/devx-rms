@@ -58,7 +58,7 @@ export function ProjectBar({
   });
 
   return (
-    <div className="flex min-w-max border-b hover:bg-gray-50">
+    <div className="flex items-center min-w-max border-b hover:bg-gray-50">
       <div className="w-48 flex-shrink-0 p-4 border-r bg-white">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
@@ -81,11 +81,13 @@ export function ProjectBar({
 
       <div
         ref={setNodeRef}
-        className={`flex-1 relative h-16 ${isOver ? "bg-blue-50" : ""}`}
+        className={`flex-1 rounded-lg relative h-16 ${
+          isOver ? "bg-blue-50" : ""
+        }`}
       >
         <div
-          className={`absolute top-0 h-full transition-colors 
-            ${isInWeek ? "bg-blue-100" : "bg-gray-50"}
+          className={`absolute rounded-lg top-0 h-full transition-colors 
+            ${isInWeek ? "bg-blue-100" : "bg-gray-100"}
             ${isOver ? "border-2 border-blue-400" : "border border-blue-200"}
           `}
           style={{
