@@ -25,6 +25,7 @@ import {
   AvailableEmployeesList,
 } from "./AvailableEmployeesList";
 import { Project, Employee, Assignment } from "@/types/models";
+import { AddProjectModal } from "../modals/AddProjectModal";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -85,6 +86,7 @@ export function GanttChart() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [availabilityThreshold, setAvailabilityThreshold] =
     useState<number>(80);
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
 
   const weeks = useMemo(calculateTimelineWeeks, []);
   const timelineStart = weeks[0];
@@ -425,7 +427,7 @@ export function GanttChart() {
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 p-4 bg-white border-t">
+        <div className="sticky bottom-0 p-4 flex gap-4 bg-white border-t">
           <button
             onClick={handleSave}
             disabled={!hasUnsavedChanges}
@@ -436,6 +438,12 @@ export function GanttChart() {
             }`}
           >
             Save Changes
+          </button>
+          <button
+            onClick={() => setShowAddProjectModal(true)}
+            className="bg-blue-500 px-4 py-2 rounded  text-white hover:bg-blue-600"
+          >
+            Add Project
           </button>
         </div>
       </div>
@@ -478,6 +486,12 @@ export function GanttChart() {
           />
         </div>
       )}
+
+      <AddProjectModal
+        isOpen={showAddProjectModal}
+        onClose={() => setShowAddProjectModal(false)}
+        onProjectAdded={fetchProjects}
+      />
     </div>
   );
 }
