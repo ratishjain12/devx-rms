@@ -83,6 +83,8 @@ export function GanttChart() {
     toProject: Project;
   } | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [availabilityThreshold, setAvailabilityThreshold] =
+    useState<number>(80);
 
   const weeks = useMemo(calculateTimelineWeeks, []);
   const timelineStart = weeks[0];
@@ -122,7 +124,7 @@ export function GanttChart() {
       try {
         const weekEnd = addDays(week, 6);
         const response = await fetch(
-          `/api/employees/available?startDate=${week.toISOString()}&endDate=${weekEnd.toISOString()}&availabilityThreshold=80`
+          `/api/employees/available?startDate=${week.toISOString()}&endDate=${weekEnd.toISOString()}&availabilityThreshold=${availabilityThreshold}`
         );
         const data = await response.json();
         setAvailableEmployees(data);
@@ -132,6 +134,21 @@ export function GanttChart() {
     } else {
       // Clear available employees when deselecting
       setAvailableEmployees([]);
+    }
+  };
+  const handleThresholdChange = async (newThreshold: number) => {
+    setAvailabilityThreshold(newThreshold);
+    if (selectedWeek) {
+      try {
+        const weekEnd = addDays(selectedWeek, 6);
+        const response = await fetch(
+          `/api/employees/available?startDate=${selectedWeek.toISOString()}&endDate=${weekEnd.toISOString()}&availabilityThreshold=${newThreshold}`
+        );
+        const data = await response.json();
+        setAvailableEmployees(data);
+      } catch (error) {
+        console.error("Failed to fetch available employees:", error);
+      }
     }
   };
 
@@ -354,6 +371,8 @@ export function GanttChart() {
               start: selectedWeek,
               end: addDays(selectedWeek, 6),
             }}
+            threshold={availabilityThreshold}
+            onThresholdChange={handleThresholdChange}
           />
         </div>
       )}
