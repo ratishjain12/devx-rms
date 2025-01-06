@@ -11,6 +11,7 @@ import { Project } from "@/types/models";
 import { ResourceBar } from "./ResourceBar";
 import { PlusCircle } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
+import { calculateProjectRequirementStatus } from "@/lib/utils";
 
 interface ProjectBarProps {
   project: Project;
@@ -57,10 +58,31 @@ export function ProjectBar({
     id: `project-${project.id}`,
   });
 
+  const requirementStatus = calculateProjectRequirementStatus(project);
+
+  const getStatusColor = () => {
+    switch (requirementStatus.status) {
+      case "fulfilled":
+        return "bg-green-500";
+      case "partial":
+        return "bg-yellow-500";
+      case "unfulfilled":
+        return "bg-red-500";
+      default:
+        return "bg-gray-400";
+    }
+  };
+
   return (
     <div className="flex items-center min-w-max border-b hover:bg-gray-50">
       <div className="w-48 flex-shrink-0 p-4 border-r bg-white">
         <div className="flex items-center justify-between gap-2">
+          <div
+            className={`w-3 h-3 rounded-full ${getStatusColor()}`}
+            title={`Requirements Coverage: ${Math.round(
+              requirementStatus.coverage
+            )}%`}
+          />
           <div className="min-w-0">
             <h3 className="font-medium truncate" title={project.name}>
               {project.name}
