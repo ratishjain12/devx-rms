@@ -332,7 +332,7 @@ export default function Projects() {
               key={project.id}
               className="hover:shadow-lg transition-shadow duration-200"
             >
-              <CardHeader className="bg-secondary text-secondary-foreground">
+              <CardHeader className="bg-secondary rounded-t-lg text-secondary-foreground">
                 <CardTitle className="flex justify-between items-center">
                   <Link
                     href={`/projects/${project.id}`}
