@@ -40,11 +40,11 @@ const data = {
       url: "/assign",
       items: [],
     },
-    {
-      title: "Views",
-      url: "/views",
-      items: [],
-    },
+    // {
+    //   title: "Views",
+    //   url: "/views",
+    //   items: [],
+    // },
     {
       title: "Reports",
       url: "/reports",

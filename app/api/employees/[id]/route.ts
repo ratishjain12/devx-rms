@@ -87,7 +87,6 @@ export async function GET(
           orderBy: {
             startDate: "desc",
           },
-          take: 1,
         },
       },
     });

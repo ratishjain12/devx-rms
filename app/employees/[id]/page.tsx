@@ -99,12 +99,15 @@ export default function EmployeeDetails() {
                 <Briefcase className="mr-2 h-5 w-5" />
                 <span className="font-semibold">Current Project:</span>
               </div>
-              <span>
+              <div className="flex gap-2">
                 {employee.assignments && employee.assignments.length > 0
-                  ? employee.assignments[employee.assignments.length - 1]
-                      .project.name
+                  ? employee.assignments.map((assignment) => (
+                      <Badge key={assignment.id}>
+                        {assignment.project.name}
+                      </Badge>
+                    ))
                   : "Not Assigned"}
-              </span>
+              </div>
             </div>
           </div>
         </CardContent>
