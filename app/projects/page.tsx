@@ -2,14 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  DataTableBody,
-  DataTableRow,
-  TableCell,
-} from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +26,11 @@ import {
   Role,
   Type,
 } from "@/types/models";
-import { ProjectStatus, Satisfaction, Seniority } from "@prisma/client";
+import { ProjectStatus, Seniority, Satisfaction } from "@prisma/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Users, PenToolIcon as Tool } from "lucide-react";
+import Link from "next/link";
 
 interface EditingProject
   extends Omit<
@@ -60,7 +56,6 @@ export default function Projects() {
   const [isLoading, setIsLoading] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [types, setTypes] = useState<Type[]>([]);
-  console.log(types);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
@@ -164,88 +159,48 @@ export default function Projects() {
     }
   };
 
-  const handleCreateProject = async (e: React.FormEvent) => {
+  const handleCreateOrUpdateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (!editingProject) return;
       const { startDate, endDate, ...projectData } = editingProject;
       const status = getProjectStatus(startDate, endDate);
 
-      const response = await fetch("/api/projects", {
-        method: "POST",
+      const method = editingProject.id ? "PUT" : "POST";
+      const url = editingProject.id
+        ? `/api/projects/${editingProject.id}`
+        : "/api/projects";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...projectData, startDate, endDate, status }),
       });
 
-      if (!response.ok) throw new Error("Failed to create project");
+      if (!response.ok)
+        throw new Error(
+          `Failed to ${editingProject.id ? "update" : "create"} project`
+        );
 
       await fetchProjects();
       setEditingProject(null);
       setIsEditDialogOpen(false);
       toast({
         title: "Success",
-        description: "Project created successfully.",
+        description: `Project ${
+          editingProject.id ? "updated" : "created"
+        } successfully.`,
       });
     } catch (error) {
-      console.error("Error creating project:", error);
+      console.error(
+        `Error ${editingProject?.id ? "updating" : "creating"} project:`,
+        error
+      );
       toast({
         title: "Error",
-        description: "Failed to create project.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleUpdateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (!editingProject || !editingProject.id) return;
-      const { startDate, endDate, ...projectData } = editingProject;
-      const status = getProjectStatus(startDate, endDate);
-
-      const response = await fetch(`/api/projects?id=${editingProject.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...projectData, startDate, endDate, status }),
-      });
-
-      if (!response.ok) throw new Error("Failed to update project");
-
-      await fetchProjects();
-      setEditingProject(null);
-      setIsEditDialogOpen(false);
-      toast({
-        title: "Success",
-        description: "Project updated successfully.",
-      });
-    } catch (error) {
-      console.error("Error updating project:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update project.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteProject = async (projectId: number) => {
-    try {
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) throw new Error("Failed to delete project");
-
-      await fetchProjects();
-      toast({
-        title: "Success",
-        description: "Project deleted successfully.",
-      });
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete project.",
+        description: `Failed to ${
+          editingProject?.id ? "update" : "create"
+        } project.`,
         variant: "destructive",
       });
     }
@@ -327,15 +282,30 @@ export default function Projects() {
     });
   };
 
+  const getStatusColor = (status: ProjectStatus) => {
+    switch (status) {
+      case ProjectStatus.CURRENT:
+        return "bg-green-500";
+      case ProjectStatus.UPCOMING:
+        return "bg-yellow-500";
+      case ProjectStatus.COMPLETED:
+        return "bg-blue-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
+
   return (
-    <div className="px-4">
-      <h1 className="text-3xl font-bold mb-6">Projects</h1>
-      <div className="mb-4 flex space-x-4">
-        <Input
-          placeholder="Search projects..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-4xl font-bold mb-8">Projects</h1>
+      <div className="mb-6 flex flex-wrap gap-4">
+        <div className="flex-grow">
+          <Input
+            placeholder="Search projects..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
         <Select
           value={status}
           onValueChange={(value) => setStatus(value as ProjectStatus | "ALL")}
@@ -353,70 +323,67 @@ export default function Projects() {
         <Button onClick={() => openEditDialog()}>Add Project</Button>
       </div>
       {isLoading ? (
-        <p>Loading projects...</p>
+        <div className="text-center py-8">Loading projects...</div>
       ) : (
-        <Table>
-          <TableHeader>
-            <DataTableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Client Satisfaction</TableHead>
-
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
-              <TableHead>Assigned Employees</TableHead>
-              <TableHead>Requirements</TableHead>
-              <TableHead>Actions</TableHead>
-            </DataTableRow>
-          </TableHeader>
-          <DataTableBody>
-            {projects.map((project) => (
-              <DataTableRow key={project.id}>
-                <TableCell>{project.name}</TableCell>
-                <TableCell>{project.status}</TableCell>
-                <TableCell>{project.type}</TableCell>
-                <TableCell>{project.client_satisfaction}</TableCell>
-                <TableCell>
-                  {new Date(project.startDate).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  {project.endDate
-                    ? new Date(project.endDate).toLocaleDateString()
-                    : "N/A"}
-                </TableCell>
-                <TableCell>
-                  {project.assignments &&
-                    project.assignments
-                      .map((assignment) => assignment.employee.name)
-                      .join(", ")}
-                </TableCell>
-                <TableCell>
-                  {project.projectRequirements &&
-                    project.projectRequirements.map((req) => (
-                      <div key={req.id}>
-                        {req.role?.name || "Unknown Role"} - {req.seniority} (
-                        {req.quantity})
-                      </div>
-                    ))}
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button onClick={() => openEditDialog(project)}>
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => handleDeleteProject(project.id)}
-                    >
-                      Delete
-                    </Button>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projects.map((project) => (
+            <Card
+              key={project.id}
+              className="hover:shadow-lg transition-shadow duration-200"
+            >
+              <CardHeader className="bg-secondary text-secondary-foreground">
+                <CardTitle className="flex justify-between items-center">
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className="hover:underline"
+                  >
+                    {project.name}
+                  </Link>
+                  <Badge
+                    className={`${getStatusColor(project.status)} text-white`}
+                  >
+                    {project.status}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    <span>
+                      {new Date(project.startDate).toLocaleDateString()} -
+                      {project.endDate
+                        ? new Date(project.endDate).toLocaleDateString()
+                        : "Ongoing"}
+                    </span>
                   </div>
-                </TableCell>
-              </DataTableRow>
-            ))}
-          </DataTableBody>
-        </Table>
+                  <div className="flex items-center">
+                    <Users className="mr-2 h-4 w-4" />
+                    <span>{project.assignments?.length || 0} Assigned</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Tool className="mr-2 h-4 w-4" />
+                    <span>
+                      {project.tools?.join(", ") || "No tools specified"}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openEditDialog(project)}
+                  >
+                    Edit
+                  </Button>
+                  <Button size="sm" asChild>
+                    <Link href={`/projects/${project.id}`}>View Details</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-4xl">
@@ -425,12 +392,7 @@ export default function Projects() {
               {editingProject?.id ? "Edit Project" : "Add New Project"}
             </DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={
-              editingProject?.id ? handleUpdateProject : handleCreateProject
-            }
-            className="space-y-4"
-          >
+          <form onSubmit={handleCreateOrUpdateProject} className="space-y-4">
             <div>
               <Label htmlFor="name">Name</Label>
               <Input
