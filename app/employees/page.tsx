@@ -4,6 +4,14 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -18,23 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Employee, Skill, Role } from "@/types/models";
 import { Seniority } from "@prisma/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
+import Link from "next/link";
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -237,119 +234,111 @@ export default function Employees() {
       {isLoading ? (
         <div className="text-center py-8">Loading...</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {employees.map((employee) => (
-            <Card key={employee.id} className="overflow-hidden">
-              <CardHeader className="bg-primary text-primary-foreground">
-                <CardTitle>{employee.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">Seniority:</span>
-                    <Badge>{employee.seniority}</Badge>
-                  </div>
-                  <div className="flex flex-col gap-2 justify-between">
-                    <p className="font-semibold">Current Project:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {employee.assignments?.length
-                        ? employee.assignments.map((assignment) => (
-                            <Badge variant={"secondary"} key={assignment.id}>
-                              {assignment.project.name}
-                            </Badge>
-                          ))
-                        : "Not Assigned"}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Roles:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {employee.roles && employee.roles.length > 0
-                        ? employee.roles.map((role) => (
-                            <Badge key={role} variant="outline">
-                              {role}
-                            </Badge>
-                          ))
-                        : "No Roles"}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Skills:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {employee.skills && employee.skills.length > 0
-                        ? employee.skills.map((skill) => (
-                            <Badge key={skill} variant="secondary">
-                              {skill}
-                            </Badge>
-                          ))
-                        : "No Skills"}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-end space-x-2 mt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEditingEmployee(employee);
-                      setSelectedSkills(employee.skills ?? []);
-                      setSelectedRoles(employee.roles ?? []);
-                      setIsEditDialogOpen(true);
-                    }}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Seniority</TableHead>
+              <TableHead>Current Project</TableHead>
+              <TableHead>Roles</TableHead>
+              <TableHead>Skills</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {employees.map((employee) => (
+              <TableRow key={employee.id}>
+                <TableCell>
+                  <Link
+                    href={`/employees/${employee.id}`}
+                    className="text-blue-600 hover:underline"
                   >
-                    <Edit className="mr-2 h-4 w-4" /> Edit
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm">
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Are you absolutely sure?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(
-                                `/api/employees/${employee.id}`,
-                                { method: "DELETE" }
-                              );
-                              if (!response.ok)
-                                throw new Error("Failed to delete employee");
-                              await fetchEmployees();
-                              toast({
-                                title: "Success",
-                                description: "Employee deleted successfully",
-                              });
-                            } catch (error) {
-                              console.error("Error deleting employee:", error);
-                              toast({
-                                title: "Error",
-                                description: "Failed to delete employee",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    {employee.name}
+                  </Link>
+                </TableCell>
+                <TableCell>{employee.seniority}</TableCell>
+                <TableCell>
+                  {employee.assignments?.length
+                    ? employee.assignments[employee.assignments.length - 1]
+                        .project.name
+                    : "Not Assigned"}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {employee.roles && employee.roles.length > 0
+                      ? employee.roles.map((role) => (
+                          <Badge key={role} variant="outline">
+                            {role}
+                          </Badge>
+                        ))
+                      : "No Roles"}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {employee.skills && employee.skills.length > 0
+                      ? employee.skills.map((skill) => (
+                          <Badge key={skill} variant="secondary">
+                            {skill}
+                          </Badge>
+                        ))
+                      : "No Skills"}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditingEmployee(employee);
+                        setSelectedSkills(employee.skills ?? []);
+                        setSelectedRoles(employee.roles ?? []);
+                        setIsEditDialogOpen(true);
+                      }}
+                    >
+                      <Edit className="mr-2 h-4 w-4" /> Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={async () => {
+                        if (
+                          confirm(
+                            "Are you sure you want to delete this employee?"
+                          )
+                        ) {
+                          try {
+                            const response = await fetch(
+                              `/api/employees/${employee.id}`,
+                              { method: "DELETE" }
+                            );
+                            if (!response.ok)
+                              throw new Error("Failed to delete employee");
+                            await fetchEmployees();
+                            toast({
+                              title: "Success",
+                              description: "Employee deleted successfully",
+                            });
+                          } catch (error) {
+                            console.error("Error deleting employee:", error);
+                            toast({
+                              title: "Error",
+                              description: "Failed to delete employee",
+                              variant: "destructive",
+                            });
+                          }
+                        }
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Delete
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
