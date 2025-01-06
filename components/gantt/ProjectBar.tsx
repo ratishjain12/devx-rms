@@ -75,7 +75,7 @@ export function ProjectBar({
 
   return (
     <div className="flex items-center min-w-max border-b hover:bg-gray-50">
-      <div className="w-48 flex-shrink-0 p-4 border-r bg-white">
+      <div className="w-48 flex-shrink-0 py-3 px-3 border-r bg-white">
         <div className="flex items-center justify-between gap-2">
           <div
             className={`w-3 h-3 rounded-full ${getStatusColor()}`}
@@ -104,7 +104,7 @@ export function ProjectBar({
 
       <div
         ref={setNodeRef}
-        className={`flex-1 rounded-lg relative h-16 ${
+        className={`flex-1 rounded-lg relative h-12 ${
           isOver ? "bg-blue-50" : ""
         }`}
       >

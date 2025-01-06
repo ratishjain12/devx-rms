@@ -24,16 +24,23 @@ export function ResourceBar({
     width: `${width}%`,
   };
 
+  const getUtilizationColor = (utilization: number) => {
+    if (utilization >= 80) return "bg-green-100 border-green-300";
+    if (utilization >= 40) return "bg-yellow-100 border-yellow-300";
+    return "bg-red-100 border-red-300";
+  };
+
+  const utilizationColor = getUtilizationColor(assignment.utilisation);
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className="h-full relative rounded-lg  bg-white border border-blue-100 flex items-center justify-center text-xs cursor-move overflow-hidden group"
+      className={`h-full relative rounded-lg  bg-white border border-blue-100 flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor}`}
       title={`${assignment.employee.name} (${assignment.utilisation}%)`}
     >
-      <div className="px-1 py-0.5 text-center">
+      <div className="px-1 text-center">
         <div className="font-medium truncate">
           {assignment.employee.name.split(" ").map((word, index) => (
             <React.Fragment key={index}>
