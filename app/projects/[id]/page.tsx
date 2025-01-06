@@ -155,9 +155,6 @@ export default function ProjectDetails() {
             )}
           </div>
           <div className="flex justify-end space-x-2 mt-4">
-            <Button asChild>
-              <Link href={`/projects/${project.id}/edit`}>Edit Project</Link>
-            </Button>
             <Button variant="destructive" onClick={handleDeleteProject}>
               Delete Project
             </Button>

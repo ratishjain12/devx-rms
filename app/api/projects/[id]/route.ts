@@ -6,8 +6,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  const data = await params;
   try {
-    const id = parseInt(params.id);
+    const id = parseInt(data.id);
 
     // Start a transaction to ensure all operations are performed or none
     const deletedProject = await prisma.$transaction(async (prisma) => {
