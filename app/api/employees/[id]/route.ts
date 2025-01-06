@@ -3,10 +3,11 @@ import prisma from "@/db/db.config";
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const data = await params;
   try {
-    const id = parseInt(params.id, 10); // Get the employee ID from the params
+    const id = parseInt(data.id, 10); // Get the employee ID from the params
     const body = await request.json(); // Parse the request body
     const { name, seniority, skills, roles } = body; // Destructure necessary fields
 
@@ -37,7 +38,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const data = await params;
@@ -65,10 +66,11 @@ export async function DELETE(
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
-    if (!params.id) {
+    if (!id) {
       return NextResponse.json(
         { error: "Employee ID is required" },
         { status: 400 }
@@ -77,7 +79,7 @@ export async function GET(
 
     const employee = await prisma.employee.findUnique({
       where: {
-        id: parseInt(params.id, 10), // Convert string to number
+        id: parseInt(id, 10), // Convert string to number
       },
       include: {
         assignments: {

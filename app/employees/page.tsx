@@ -54,6 +54,7 @@ export default function Employees() {
     fetchEmployees();
     fetchSkills();
     fetchRoles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchQuery, selectedSeniority, selectedSkill, selectedRole]);
 
   const fetchSkills = async () => {

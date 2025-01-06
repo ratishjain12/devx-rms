@@ -63,6 +63,7 @@ export default function Projects() {
     fetchProjects();
     fetchRoles();
     fetchTypes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchQuery, status]);
 
   const fetchProjects = async () => {

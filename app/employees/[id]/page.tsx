@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,11 +15,7 @@ export default function EmployeeDetails() {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchEmployeeDetails();
-  }, [id]);
-
-  const fetchEmployeeDetails = async () => {
+  const fetchEmployeeDetails = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/employees/${id}`);
@@ -36,7 +32,11 @@ export default function EmployeeDetails() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchEmployeeDetails();
+  }, [fetchEmployeeDetails]);
 
   if (isLoading) {
     return <div className="text-center py-8">Loading employee details...</div>;

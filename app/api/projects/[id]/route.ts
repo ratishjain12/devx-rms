@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const data = await params;
   try {
@@ -45,10 +45,11 @@ export async function DELETE(
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
-    const projectId = parseInt(params.id, 10);
+    const projectId = parseInt(id, 10);
 
     if (isNaN(projectId)) {
       return NextResponse.json(
