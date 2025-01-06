@@ -66,7 +66,12 @@ const calculateTimelineWeeks = (): Date[] => {
 
 export function GanttChart() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectsHistory, setProjectsHistory] = useState<Project[][]>([]);
+  const [projectsHistory, setProjectsHistory] = useState<
+    {
+      projects: Project[];
+      tempAssignments: TempAssignment[];
+    }[]
+  >([]);
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
   const [selectedWeek, setSelectedWeek] = useState<Date | null>(null);
   const [showUtilizationModal, setShowUtilizationModal] = useState(false);
@@ -105,8 +110,13 @@ export function GanttChart() {
       const response = await fetch("/api/projects");
       const data = await response.json();
       setProjects(data.projects);
-      // Reset history when fetching new data
-      setProjectsHistory([data.projects]);
+      // Initialize history with the fetched state
+      setProjectsHistory([
+        {
+          projects: data.projects,
+          tempAssignments: [],
+        },
+      ]);
       setCurrentHistoryIndex(0);
     } catch (error) {
       console.error("Failed to fetch projects:", error);
@@ -123,30 +133,43 @@ export function GanttChart() {
     }
   };
 
-  const handleProjectsChange = (newProjects: Project[]) => {
+  const handleProjectsChange = (
+    newProjects: Project[],
+    newTempAssignments: TempAssignment[]
+  ) => {
+    // Remove any future history if we're not at the latest state
+    const updatedHistory = projectsHistory.slice(0, currentHistoryIndex + 1);
+
+    // Add new state to history
+    const newHistoryEntry = {
+      projects: newProjects,
+      tempAssignments: newTempAssignments,
+    };
+
+    setProjectsHistory([...updatedHistory, newHistoryEntry]);
+    setCurrentHistoryIndex(currentHistoryIndex + 1);
     setProjects(newProjects);
-    setProjectsHistory((prev) => [
-      ...prev.slice(0, currentHistoryIndex + 1),
-      newProjects,
-    ]);
-    setCurrentHistoryIndex((prev) => prev + 1);
+    setTempAssignments(newTempAssignments);
     setHasUnsavedChanges(true);
   };
 
   const handleUndo = () => {
     if (currentHistoryIndex > 0) {
       const newIndex = currentHistoryIndex - 1;
+      const previousState = projectsHistory[newIndex];
+
       setCurrentHistoryIndex(newIndex);
-      setProjects(projectsHistory[newIndex]);
+      setProjects(previousState.projects);
+      setTempAssignments(previousState.tempAssignments);
     }
   };
 
   const handleReset = () => {
     if (projectsHistory[0]) {
-      setProjects(projectsHistory[0]);
+      setProjects(projectsHistory[0].projects);
+      setTempAssignments(projectsHistory[0].tempAssignments);
       setProjectsHistory([projectsHistory[0]]);
       setCurrentHistoryIndex(0);
-      setTempAssignments([]);
       setHasUnsavedChanges(false);
     }
   };
@@ -193,7 +216,7 @@ export function GanttChart() {
       utilisation: utilization,
     };
 
-    setTempAssignments((prev) => [...prev, newAssignment]);
+    const newTempAssignments = [...tempAssignments, newAssignment];
 
     const selectedEmployee = allEmployees.find((e) => e.id === employeeId);
     if (selectedEmployee) {
@@ -218,7 +241,7 @@ export function GanttChart() {
         return project;
       });
 
-      handleProjectsChange(newProjects);
+      handleProjectsChange(newProjects, newTempAssignments);
     }
 
     setShowAssignmentModal(false);
@@ -283,7 +306,7 @@ export function GanttChart() {
         newUtilization,
       };
 
-      setTempAssignments((prev) => [...prev, tempMovedAssignment]);
+      const newTempAssignments = [...tempAssignments, tempMovedAssignment];
 
       const newProjects = projects.map((project) => {
         if (project.id === movedAssignment.fromProject.id) {
@@ -317,7 +340,7 @@ export function GanttChart() {
         return project;
       });
 
-      handleProjectsChange(newProjects);
+      handleProjectsChange(newProjects, newTempAssignments);
     }
     setShowUtilizationModal(false);
     setMovedAssignment(null);
