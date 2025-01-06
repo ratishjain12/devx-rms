@@ -37,7 +37,7 @@ export function ResourceBar({
       style={style}
       {...attributes}
       {...listeners}
-      className={`h-full relative rounded-lg  bg-white border border-blue-100 flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor}`}
+      className={`h-full relative rounded-lg  border flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor}`}
       title={`${assignment.employee.name} (${assignment.utilisation}%)`}
     >
       <div className="px-1 text-center">
