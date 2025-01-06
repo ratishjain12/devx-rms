@@ -1,4 +1,3 @@
-// GanttChart.tsx
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -26,6 +25,7 @@ import {
 } from "./AvailableEmployeesList";
 import { Project, Employee, Assignment } from "@/types/models";
 import { AddProjectModal } from "../modals/AddProjectModal";
+import { Undo2, RotateCcw } from "lucide-react";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -45,12 +45,11 @@ interface TempNewAssignment {
   utilisation: number;
 }
 
+type TempAssignment = TempNewAssignment | TempMovedAssignment;
+
 const calculateTimelineWeeks = (): Date[] => {
-  // Get the first day of the current month
   const today = new Date();
   const currentWeek = startOfWeek(today);
-
-  // Calculate 3 weeks back and 10 weeks forward
   const start = subWeeks(currentWeek, 3);
   const end = addWeeks(currentWeek, 10);
 
@@ -65,13 +64,14 @@ const calculateTimelineWeeks = (): Date[] => {
   return weeks;
 };
 
-type TempAssignment = TempNewAssignment | TempMovedAssignment;
-
 export function GanttChart() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsHistory, setProjectsHistory] = useState<Project[][]>([]);
+  const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
   const [selectedWeek, setSelectedWeek] = useState<Date | null>(null);
   const [showUtilizationModal, setShowUtilizationModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [availableEmployees, setAvailableEmployees] = useState<
     AvailableEmployee[]
@@ -83,10 +83,9 @@ export function GanttChart() {
     fromProject: Project;
     toProject: Project;
   } | null>(null);
+
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [availabilityThreshold, setAvailabilityThreshold] =
-    useState<number>(80);
-  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [availabilityThreshold, setAvailabilityThreshold] = useState(80);
 
   const weeks = useMemo(calculateTimelineWeeks, []);
   const timelineStart = weeks[0];
@@ -106,6 +105,9 @@ export function GanttChart() {
       const response = await fetch("/api/projects");
       const data = await response.json();
       setProjects(data.projects);
+      // Reset history when fetching new data
+      setProjectsHistory([data.projects]);
+      setCurrentHistoryIndex(0);
     } catch (error) {
       console.error("Failed to fetch projects:", error);
     }
@@ -120,6 +122,35 @@ export function GanttChart() {
       console.error("Failed to fetch employees:", error);
     }
   };
+
+  const handleProjectsChange = (newProjects: Project[]) => {
+    setProjects(newProjects);
+    setProjectsHistory((prev) => [
+      ...prev.slice(0, currentHistoryIndex + 1),
+      newProjects,
+    ]);
+    setCurrentHistoryIndex((prev) => prev + 1);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleUndo = () => {
+    if (currentHistoryIndex > 0) {
+      const newIndex = currentHistoryIndex - 1;
+      setCurrentHistoryIndex(newIndex);
+      setProjects(projectsHistory[newIndex]);
+    }
+  };
+
+  const handleReset = () => {
+    if (projectsHistory[0]) {
+      setProjects(projectsHistory[0]);
+      setProjectsHistory([projectsHistory[0]]);
+      setCurrentHistoryIndex(0);
+      setTempAssignments([]);
+      setHasUnsavedChanges(false);
+    }
+  };
+
   const handleWeekSelect = async (week: Date | null) => {
     setSelectedWeek(week);
     if (week) {
@@ -134,23 +165,7 @@ export function GanttChart() {
         console.error("Failed to fetch available employees:", error);
       }
     } else {
-      // Clear available employees when deselecting
       setAvailableEmployees([]);
-    }
-  };
-  const handleThresholdChange = async (newThreshold: number) => {
-    setAvailabilityThreshold(newThreshold);
-    if (selectedWeek) {
-      try {
-        const weekEnd = addDays(selectedWeek, 6);
-        const response = await fetch(
-          `/api/employees/available?startDate=${selectedWeek.toISOString()}&endDate=${weekEnd.toISOString()}&availabilityThreshold=${newThreshold}`
-        );
-        const data = await response.json();
-        setAvailableEmployees(data);
-      } catch (error) {
-        console.error("Failed to fetch available employees:", error);
-      }
     }
   };
 
@@ -169,7 +184,6 @@ export function GanttChart() {
     startDate: string,
     endDate: string
   ) => {
-    // Add to temp assignments
     const newAssignment: TempNewAssignment = {
       type: "new",
       projectId,
@@ -181,105 +195,41 @@ export function GanttChart() {
 
     setTempAssignments((prev) => [...prev, newAssignment]);
 
-    // Update UI immediately
     const selectedEmployee = allEmployees.find((e) => e.id === employeeId);
     if (selectedEmployee) {
-      setProjects((prevProjects) =>
-        prevProjects.map((project) => {
-          if (project.id === projectId) {
-            // Create a temporary assignment for UI
-            const tempUIAssignment: Assignment = {
-              id: -Date.now(), // Temporary negative ID
-              employeeId,
-              projectId,
-              startDate,
-              endDate,
-              utilisation: utilization,
-              employee: selectedEmployee,
-              project: project,
-            };
+      const newProjects = projects.map((project) => {
+        if (project.id === projectId) {
+          const tempUIAssignment: Assignment = {
+            id: -Date.now(),
+            employeeId,
+            projectId,
+            startDate,
+            endDate,
+            utilisation: utilization,
+            employee: selectedEmployee,
+            project: project,
+          };
 
-            return {
-              ...project,
-              assignments: [...project.assignments, tempUIAssignment],
-            };
-          }
-          return project;
-        })
-      );
+          return {
+            ...project,
+            assignments: [...project.assignments, tempUIAssignment],
+          };
+        }
+        return project;
+      });
+
+      handleProjectsChange(newProjects);
     }
 
     setShowAssignmentModal(false);
     setSelectedProject(null);
-    setHasUnsavedChanges(true);
   };
 
-  const handleUtilizationConfirm = (
-    newUtilization: number,
-    previousUtilization: number
-  ) => {
-    if (movedAssignment) {
-      // Create properly typed moved assignment
-      const tempMovedAssignment: TempMovedAssignment = {
-        type: "moved",
-        fromProjectId: movedAssignment.fromProject.id,
-        toProjectId: movedAssignment.toProject.id,
-        assignment: movedAssignment.assignment,
-        previousUtilization,
-        newUtilization,
-      };
-
-      setTempAssignments((prev) => [...prev, tempMovedAssignment]);
-
-      setProjects((prevProjects) =>
-        prevProjects.map((project) => {
-          if (project.id === movedAssignment.fromProject.id) {
-            return {
-              ...project,
-              assignments:
-                previousUtilization === 0
-                  ? project.assignments.filter(
-                      (a) => a.id !== movedAssignment.assignment.id
-                    )
-                  : project.assignments.map((a) =>
-                      a.id === movedAssignment.assignment.id
-                        ? { ...a, utilisation: previousUtilization }
-                        : a
-                    ),
-            };
-          }
-          if (
-            project.id === movedAssignment.toProject.id &&
-            newUtilization > 0
-          ) {
-            return {
-              ...project,
-              assignments: [
-                ...project.assignments,
-                {
-                  ...movedAssignment.assignment,
-                  utilisation: newUtilization,
-                  projectId: project.id,
-                },
-              ],
-            };
-          }
-          return project;
-        })
-      );
-
-      setHasUnsavedChanges(true);
-    }
-    setShowUtilizationModal(false);
-    setMovedAssignment(null);
-  };
-  // GanttChart.tsx - update handleDragEnd
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (active.id !== over?.id && over?.id) {
       const [fromProjectId, assignmentId] = active.id.toString().split("-");
-      // Extract project ID from the droppable area ID
       const toProjectId = (over.id as string).replace("project-", "");
 
       const fromProject = projects.find(
@@ -303,11 +253,80 @@ export function GanttChart() {
     }
   };
 
+  const handleThresholdChange = async (newThreshold: number) => {
+    setAvailabilityThreshold(newThreshold);
+    if (selectedWeek) {
+      try {
+        const weekEnd = addDays(selectedWeek, 6);
+        const response = await fetch(
+          `/api/employees/available?startDate=${selectedWeek.toISOString()}&endDate=${weekEnd.toISOString()}&availabilityThreshold=${newThreshold}`
+        );
+        const data = await response.json();
+        setAvailableEmployees(data);
+      } catch (error) {
+        console.error("Failed to fetch available employees:", error);
+      }
+    }
+  };
+
+  const handleUtilizationConfirm = (
+    newUtilization: number,
+    previousUtilization: number
+  ) => {
+    if (movedAssignment) {
+      const tempMovedAssignment: TempMovedAssignment = {
+        type: "moved",
+        fromProjectId: movedAssignment.fromProject.id,
+        toProjectId: movedAssignment.toProject.id,
+        assignment: movedAssignment.assignment,
+        previousUtilization,
+        newUtilization,
+      };
+
+      setTempAssignments((prev) => [...prev, tempMovedAssignment]);
+
+      const newProjects = projects.map((project) => {
+        if (project.id === movedAssignment.fromProject.id) {
+          return {
+            ...project,
+            assignments:
+              previousUtilization === 0
+                ? project.assignments.filter(
+                    (a) => a.id !== movedAssignment.assignment.id
+                  )
+                : project.assignments.map((a) =>
+                    a.id === movedAssignment.assignment.id
+                      ? { ...a, utilisation: previousUtilization }
+                      : a
+                  ),
+          };
+        }
+        if (project.id === movedAssignment.toProject.id && newUtilization > 0) {
+          return {
+            ...project,
+            assignments: [
+              ...project.assignments,
+              {
+                ...movedAssignment.assignment,
+                utilisation: newUtilization,
+                projectId: project.id,
+              },
+            ],
+          };
+        }
+        return project;
+      });
+
+      handleProjectsChange(newProjects);
+    }
+    setShowUtilizationModal(false);
+    setMovedAssignment(null);
+  };
+
   const handleSave = async () => {
     try {
       for (const temp of tempAssignments) {
         if (temp.type === "moved") {
-          // Handle moved assignments
           if (temp.previousUtilization > 0) {
             await fetch(`/api/assignments/${temp.assignment.id}`, {
               method: "PUT",
@@ -340,7 +359,6 @@ export function GanttChart() {
             });
           }
         } else if (temp.type === "new") {
-          // Handle new assignments
           await fetch("/api/assignments", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -428,6 +446,34 @@ export function GanttChart() {
 
         {/* Footer */}
         <div className="sticky bottom-0 p-4 flex gap-4 bg-white border-t">
+          <div className="flex gap-2">
+            <button
+              onClick={handleUndo}
+              disabled={currentHistoryIndex <= 0}
+              className={`px-4 py-2 rounded flex items-center gap-2
+        ${
+          currentHistoryIndex > 0
+            ? "bg-gray-100 hover:bg-gray-200"
+            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+        }`}
+            >
+              <Undo2 size={16} />
+              Undo
+            </button>
+            <button
+              onClick={handleReset}
+              disabled={!hasUnsavedChanges}
+              className={`px-4 py-2 rounded flex items-center gap-2
+        ${
+          hasUnsavedChanges
+            ? "bg-gray-100 hover:bg-gray-200"
+            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+        }`}
+            >
+              <RotateCcw size={16} />
+              Reset
+            </button>
+          </div>
           <button
             onClick={handleSave}
             disabled={!hasUnsavedChanges}
