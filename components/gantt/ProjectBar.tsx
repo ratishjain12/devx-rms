@@ -1,11 +1,11 @@
 // ProjectBar.tsx
 import React from "react";
-import { format, addDays } from "date-fns";
+import { format, addDays, isSameWeek } from "date-fns";
 import { Project } from "@/types/models";
 import { ResourceBar } from "./ResourceBar";
 import { PlusCircle } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
-import { calculateProjectRequirementStatus } from "@/lib/utils";
+import { calculateProjectRequirementStatus, cn } from "@/lib/utils";
 import Link from "next/link";
 
 interface ProjectBarProps {
@@ -15,14 +15,15 @@ interface ProjectBarProps {
   onAddAssignment: (projectId: number) => void;
   selectedWeek: Date | null;
   weeks: Date[];
+  onSelectWeek: (week: Date | null) => void; // Add this prop
 }
 
 export function ProjectBar({
   project,
-
   onAddAssignment,
-
+  selectedWeek,
   weeks,
+  onSelectWeek,
 }: ProjectBarProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `project-${project.id}`,
@@ -79,17 +80,23 @@ export function ProjectBar({
       {/* Weekly Resource Bars */}
       <div
         ref={setNodeRef}
-        className={`flex-1 rounded-lg relative h-12 ${
-          isOver ? "bg-blue-50" : ""
-        }`}
+        className={cn(
+          "flex-1 rounded-lg relative transition-all duration-200",
+          isOver ? "bg-blue-50 border-2 border-blue-400" : "bg-white",
+          selectedWeek ? "h-20" : "h-12" // Dynamically adjust height
+        )}
       >
         <div className="flex h-full">
           {weeks.map((week) => {
             const weekStart = week;
             const weekEnd = addDays(week, 6);
 
-            // Find assignments that fall within this week
+            // Check if this week is selected
+            const isSelected =
+              selectedWeek &&
+              isSameWeek(week, selectedWeek, { weekStartsOn: 0 });
 
+            // Find assignments that fall within this week
             const assignmentsInWeek = project.assignments.filter(
               (assignment) => {
                 const assignmentStart = new Date(assignment.startDate);
@@ -106,15 +113,24 @@ export function ProjectBar({
             return (
               <div
                 key={week.toISOString()}
-                className="w-[120px] shrink-0 border-r border-gray-200 relative"
+                className={`shrink-0 border-r border-gray-200 transition-all duration-100 relative ${
+                  isSelected ? "w-[180px]" : "w-[120px]" // Expand the selected week
+                }`}
+                onClick={() => onSelectWeek(week)} // Select the week on click
               >
-                <div className="absolute inset-0 flex flex-col gap-1 p-1">
+                <div
+                  className={cn(
+                    "absolute inset-0 flex flex-col gap-1 p-1",
+                    isSelected ? "gap-2" : "gap-1"
+                  )}
+                >
                   {assignmentsInWeek.map((assignment) => (
                     <ResourceBar
                       key={`${assignment.id}-${week.toISOString()}`}
                       assignment={assignment}
                       projectId={project.id}
                       week={week}
+                      isSelected={isSelected} // Pass the selected state
                     />
                   ))}
                 </div>

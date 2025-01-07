@@ -27,6 +27,7 @@ import {
 import { Project, Employee, Assignment } from "@/types/models";
 import { AddProjectModal } from "../modals/AddProjectModal";
 import { Undo2, RotateCcw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -459,7 +460,12 @@ export function GanttChart() {
                   {weeks.map((week) => (
                     <div
                       key={week.toISOString()}
-                      className="w-[120px] shrink-0 border-r border-gray-200"
+                      className={cn(
+                        "shrink-0 border-r border-gray-200",
+                        selectedWeek?.toISOString() === week.toISOString()
+                          ? "w-[180px]"
+                          : "w-[120px] "
+                      )}
                     />
                   ))}
                 </div>
@@ -492,6 +498,7 @@ export function GanttChart() {
                           onAddAssignment={handleAddAssignment}
                           selectedWeek={selectedWeek}
                           weeks={weeks}
+                          onSelectWeek={handleWeekSelect}
                         />
                       ))}
                     </div>

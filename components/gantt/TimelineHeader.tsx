@@ -1,6 +1,7 @@
 // TimelineHeader.tsx
 import React from "react";
 import { format, addDays } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface TimelineHeaderProps {
   weeks: Date[];
@@ -38,7 +39,12 @@ export function TimelineHeader({
         {weeks.map((week) => (
           <div
             key={week.toISOString()}
-            className="w-[120px] shrink-0 border-r border-gray-200"
+            className={cn(
+              " shrink-0 border-r border-gray-200",
+              selectedWeek?.toISOString() === week.toISOString()
+                ? "w-[180px]"
+                : "w-[120px]"
+            )}
           >
             <button
               onClick={() => handleWeekClick(week)}

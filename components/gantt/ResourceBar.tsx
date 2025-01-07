@@ -7,10 +7,16 @@ import { Assignment } from "@/types/models";
 interface ResourceBarProps {
   assignment: Assignment;
   projectId: number;
-  week: Date; // Add week as a prop
+  week: Date;
+  isSelected: boolean | null; // Add this prop
 }
 
-export function ResourceBar({ assignment, projectId, week }: ResourceBarProps) {
+export function ResourceBar({
+  assignment,
+  projectId,
+  week,
+  isSelected,
+}: ResourceBarProps) {
   // Generate a unique ID for the draggable item
   const uniqueId = `${projectId}-${assignment.id}-${week.toISOString()}`;
 
@@ -21,12 +27,13 @@ export function ResourceBar({ assignment, projectId, week }: ResourceBarProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: uniqueId }); // Use the unique ID
+  } = useSortable({ id: uniqueId });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.5 : 1, // Add opacity effect when dragging
+    zIndex: isDragging ? 1000 : 1, // Ensure the dragged item is above others
   };
 
   const getUtilizationColor = (utilization: number) => {
@@ -42,13 +49,20 @@ export function ResourceBar({ assignment, projectId, week }: ResourceBarProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`h-full w-full rounded-lg border flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor}`}
-      title={`${assignment.employee.name} (${assignment.utilisation}%)`}
+      className={`h-full w-full rounded-lg border flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor} ${
+        isSelected ? "ring-2 ring-blue-500 " : "" // Highlight selected resources
+      }`}
+      title={`${assignment.employee.name} - (${new Date(
+        assignment.startDate
+      ).toDateString()} - ${new Date(assignment.endDate).toDateString()}) (${
+        assignment.utilisation
+      }%)`}
     >
-      <div className="px-2 py-1 text-center">
+      <div className="px-2 py-1 flex gap-3 text-center">
         <div className="font-medium truncate">
           {assignment.employee.name.split(" ")[0]}
         </div>
+        {isSelected && <div>{`(${assignment.utilisation})`}%</div>}
       </div>
     </div>
   );
