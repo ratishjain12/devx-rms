@@ -6,6 +6,7 @@ import { ResourceBar } from "./ResourceBar";
 import { PlusCircle } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
 import { calculateProjectRequirementStatus } from "@/lib/utils";
+import Link from "next/link";
 
 interface ProjectBarProps {
   project: Project;
@@ -59,7 +60,10 @@ export function ProjectBar({
               requirementStatus.coverage
             )}%`}
           />
-          <div className="min-w-0">
+          <Link
+            href={`/projects/${project.id}`}
+            className="min-w-0 cursor-pointer"
+          >
             <h3 className="font-medium truncate" title={project.name}>
               {project.name}
             </h3>
@@ -67,7 +71,7 @@ export function ProjectBar({
               {format(project.startDate, "MMM d")} -{" "}
               {project.endDate ? format(project.endDate, "MMM d") : "Ongoing"}
             </span>
-          </div>
+          </Link>
           <button
             onClick={() => onAddAssignment(project.id)}
             className="flex-shrink-0 text-blue-500 hover:text-blue-600 p-1"

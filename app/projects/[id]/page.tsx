@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, PenToolIcon as Tool, Briefcase, Star } from "lucide-react";
-import Link from "next/link";
 
 export default function ProjectDetails() {
   const router = useRouter();
@@ -87,11 +86,10 @@ export default function ProjectDetails() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Link href="/projects">
-        <Button variant="outline" className="mb-4">
-          Back to Projects
-        </Button>
-      </Link>
+      <Button variant="outline" className="mb-4" onClick={() => router.back()}>
+        Back to Projects
+      </Button>
+
       <Card>
         <CardHeader className="bg-secondary text-secondary-foreground">
           <CardTitle className="flex justify-between items-center">
