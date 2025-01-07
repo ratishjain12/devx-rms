@@ -1,23 +1,22 @@
-// ResourceBar.tsx
 import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Assignment } from "@/types/models";
+import { UserCircle2 } from "lucide-react";
 
-interface ResourceBarProps {
+interface ResourceCardProps {
   assignment: Assignment;
   projectId: number;
   week: Date;
-  isSelected: boolean | null; // Add this prop
+  isSelected: boolean;
 }
 
-export function ResourceBar({
+export function ResourceCard({
   assignment,
   projectId,
   week,
   isSelected,
-}: ResourceBarProps) {
-  // Generate a unique ID for the draggable item
+}: ResourceCardProps) {
   const uniqueId = `${projectId}-${assignment.id}-${week.toISOString()}`;
 
   const {
@@ -32,37 +31,58 @@ export function ResourceBar({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1, // Add opacity effect when dragging
-    zIndex: isDragging ? 1000 : 1, // Ensure the dragged item is above others
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 1,
   };
 
-  const getUtilizationColor = (utilization: number) => {
-    if (utilization >= 80) return "bg-green-100 border-green-300";
-    if (utilization >= 40) return "bg-yellow-100 border-yellow-300";
-    return "bg-red-100 border-red-300";
+  const getUtilizationInfo = (utilization: number) => {
+    if (utilization >= 80) {
+      return {
+        color: "bg-green-50",
+        borderColor: "border-green-200",
+        textColor: "text-green-700",
+      };
+    }
+    if (utilization >= 40) {
+      return {
+        color: "bg-yellow-50",
+        borderColor: "border-yellow-200",
+        textColor: "text-yellow-700",
+      };
+    }
+    return {
+      color: "bg-blue-50",
+      borderColor: "border-blue-200",
+      textColor: "text-blue-700",
+    };
   };
 
-  const utilizationColor = getUtilizationColor(assignment.utilisation);
+  const utilizationInfo = getUtilizationInfo(assignment.utilisation);
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className={`h-full w-full rounded-lg border flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor} ${
-        isSelected ? "ring-2 ring-blue-500 " : "" // Highlight selected resources
-      }`}
-      title={`${assignment.employee.name} - (${new Date(
-        assignment.startDate
-      ).toDateString()} - ${new Date(assignment.endDate).toDateString()}) (${
-        assignment.utilisation
-      }%)`}
+      className={`
+        w-full relative z-10 rounded border cursor-move transition-all text-sm
+        ${utilizationInfo.color} ${utilizationInfo.borderColor}
+        ${isSelected ? "ring-1 ring-blue-400" : ""}
+      `}
     >
-      <div className="px-2 py-1 flex gap-3 text-center">
-        <div className="font-medium truncate">
-          {assignment.employee.name.split(" ")[0]}
+      <div className="px-2 py-1 flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <UserCircle2 className={`w-4 h-4 ${utilizationInfo.textColor}`} />
+          <span className="font-medium text-gray-900 truncate">
+            {assignment.employee.name.split(" ")[0]}
+          </span>
         </div>
-        {isSelected && <div>{`(${assignment.utilisation})`}%</div>}
+        <div
+          className={`text-xs ${utilizationInfo.textColor} font-medium shrink-0`}
+        >
+          {assignment.utilisation}%
+        </div>
       </div>
     </div>
   );

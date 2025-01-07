@@ -1,7 +1,7 @@
-// TimelineHeader.tsx
 import React from "react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Calendar } from "lucide-react";
 
 interface TimelineHeaderProps {
   weeks: Date[];
@@ -28,39 +28,63 @@ export function TimelineHeader({
   };
 
   return (
-    <div className="flex">
-      {/* Project name column header */}
-      <div className="w-48 shrink-0 p-4 border-r border-gray-200 bg-gray-50">
-        <div className="font-semibold">Project Name</div>
+    <div className="flex border-b">
+      {/* Project column header */}
+      <div className="w-48 shrink-0 p-3 border-r border-gray-200 bg-gray-50">
+        <div className="flex items-center">
+          <span className="font-semibold text-gray-900">Project</span>
+        </div>
       </div>
 
       {/* Week columns */}
       <div className="flex flex-1">
-        {weeks.map((week) => (
-          <div
-            key={week.toISOString()}
-            className={cn(
-              " shrink-0 border-r border-gray-200",
-              selectedWeek?.toISOString() === week.toISOString()
-                ? "w-[180px]"
-                : "w-[120px]"
-            )}
-          >
-            <button
-              onClick={() => handleWeekClick(week)}
-              className={`w-full h-full p-2 text-sm transition-colors ${
-                selectedWeek?.toISOString() === week.toISOString()
-                  ? "bg-blue-100 font-medium"
-                  : "hover:bg-blue-50 bg-white"
-              }`}
+        {weeks.map((week) => {
+          const isSelected = selectedWeek?.toISOString() === week.toISOString();
+
+          return (
+            <div
+              key={week.toISOString()}
+              className={cn(
+                "shrink-0 border-r border-gray-200",
+                isSelected ? "w-[250px]" : "w-[190px]"
+              )}
             >
-              <div className="text-xs text-gray-600 mb-1">
-                Week {format(week, "w")}
-              </div>
-              <div className="whitespace-nowrap">{formatWeekRange(week)}</div>
-            </button>
-          </div>
-        ))}
+              <button
+                onClick={() => handleWeekClick(week)}
+                className={cn(
+                  "w-full p-2 text-left transition-all group",
+                  isSelected ? "bg-blue-50" : "bg-gray-50 hover:bg-gray-100"
+                )}
+              >
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <Calendar
+                    size={12}
+                    className={cn(
+                      "text-gray-400",
+                      isSelected && "text-blue-500"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-xs font-medium",
+                      isSelected ? "text-blue-600" : "text-gray-600"
+                    )}
+                  >
+                    Week {format(week, "w")}
+                  </span>
+                </div>
+                <div
+                  className={cn(
+                    "text-xs",
+                    isSelected ? "text-blue-900 font-medium" : "text-gray-700"
+                  )}
+                >
+                  {formatWeekRange(week)}
+                </div>
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
