@@ -7,15 +7,26 @@ import { Assignment } from "@/types/models";
 interface ResourceBarProps {
   assignment: Assignment;
   projectId: number;
+  week: Date; // Add week as a prop
 }
 
-export function ResourceBar({ assignment, projectId }: ResourceBarProps) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: `${projectId}-${assignment.id}` });
+export function ResourceBar({ assignment, projectId, week }: ResourceBarProps) {
+  // Generate a unique ID for the draggable item
+  const uniqueId = `${projectId}-${assignment.id}-${week.toISOString()}`;
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: uniqueId }); // Use the unique ID
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
   };
 
   const getUtilizationColor = (utilization: number) => {
@@ -31,13 +42,12 @@ export function ResourceBar({ assignment, projectId }: ResourceBarProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`h-8 rounded-lg border flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor}`}
+      className={`h-full w-full rounded-lg border flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor}`}
       title={`${assignment.employee.name} (${assignment.utilisation}%)`}
     >
-      <div className="px-2 py-1 text-center min-w-0">
+      <div className="px-2 py-1 text-center">
         <div className="font-medium truncate">
-          {assignment.employee.name.split(" ")[0]}{" "}
-          {/* Show only the first name */}
+          {assignment.employee.name.split(" ")[0]}
         </div>
       </div>
     </div>

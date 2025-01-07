@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -270,12 +271,11 @@ export function GanttChart() {
     const { active, over } = event;
 
     if (active.id !== over?.id && over?.id) {
-      const [fromProjectId, assignmentId] = active.id.toString().split("-");
+      // Parse the unique ID to extract projectId, assignmentId, and week
+      const [projectId, assignmentId, week] = active.id.toString().split("-");
       const toProjectId = (over.id as string).replace("project-", "");
 
-      const fromProject = projects.find(
-        (p) => p.id === parseInt(fromProjectId)
-      );
+      const fromProject = projects.find((p) => p.id === parseInt(projectId));
       const toProject = projects.find((p) => p.id === parseInt(toProjectId));
 
       if (fromProject && toProject) {
@@ -312,14 +312,22 @@ export function GanttChart() {
 
   const handleUtilizationConfirm = (
     newUtilization: number,
-    previousUtilization: number
+    previousUtilization: number,
+    newStartDate: string,
+    newEndDate: string,
+    updatedCurrentStartDate: string,
+    updatedCurrentEndDate: string
   ) => {
     if (movedAssignment) {
       const tempMovedAssignment: TempMovedAssignment = {
         type: "moved",
         fromProjectId: movedAssignment.fromProject.id,
         toProjectId: movedAssignment.toProject.id,
-        assignment: movedAssignment.assignment,
+        assignment: {
+          ...movedAssignment.assignment,
+          startDate: newStartDate, // Updated start date for the new project
+          endDate: newEndDate, // Updated end date for the new project
+        },
         previousUtilization,
         newUtilization,
       };
@@ -328,8 +336,11 @@ export function GanttChart() {
 
       const newProjects = projects.map((project) => {
         if (project.id === movedAssignment.fromProject.id) {
+          // Update the current project's start and end dates
           return {
             ...project,
+            startDate: updatedCurrentStartDate, // Updated current start date
+            endDate: updatedCurrentEndDate, // Updated current end date
             assignments:
               previousUtilization === 0
                 ? project.assignments.filter(
@@ -349,6 +360,8 @@ export function GanttChart() {
               ...project.assignments,
               {
                 ...movedAssignment.assignment,
+                startDate: newStartDate, // Updated start date for the new project
+                endDate: newEndDate, // Updated end date for the new project
                 utilisation: newUtilization,
                 projectId: project.id,
               },
@@ -363,7 +376,6 @@ export function GanttChart() {
     setShowUtilizationModal(false);
     setMovedAssignment(null);
   };
-
   const handleSave = async () => {
     try {
       for (const temp of tempAssignments) {
@@ -462,7 +474,11 @@ export function GanttChart() {
                 >
                   <SortableContext
                     items={projects.flatMap((p) =>
-                      p.assignments.map((a) => `${p.id}-${a.id}`)
+                      p.assignments.flatMap((a) =>
+                        weeks.map(
+                          (week) => `${p.id}-${a.id}-${week.toISOString()}`
+                        )
+                      )
                     )}
                     strategy={verticalListSortingStrategy}
                   >

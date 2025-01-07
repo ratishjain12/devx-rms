@@ -43,12 +43,6 @@ export function ProjectBar({
     }
   };
 
-  console.log(
-    "Rendering ProjectBar for project:",
-    project.name,
-    project.assignments
-  );
-
   return (
     <div className="flex items-center min-w-max border-b hover:bg-gray-50">
       {/* Project Name and Add Assignment Button */}
@@ -120,6 +114,7 @@ export function ProjectBar({
                       key={`${assignment.id}-${week.toISOString()}`}
                       assignment={assignment}
                       projectId={project.id}
+                      week={week}
                     />
                   ))}
                 </div>

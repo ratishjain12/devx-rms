@@ -6,7 +6,14 @@ interface UtilizationModalProps {
   assignment: Assignment;
   fromProject: Project;
   toProject: Project;
-  onConfirm: (newUtilization: number, previousUtilization: number) => void; // Simplified props
+  onConfirm: (
+    newUtilization: number,
+    previousUtilization: number,
+    newStartDate: string,
+    newEndDate: string,
+    updatedCurrentStartDate: string,
+    updatedCurrentEndDate: string
+  ) => void; // Updated to include updated current dates
   onClose: () => void;
 }
 
@@ -21,9 +28,24 @@ export function UtilizationModal({
   const [previousUtilization, setPreviousUtilization] = useState(
     assignment.utilisation
   );
+  const [newStartDate, setNewStartDate] = useState(assignment.startDate);
+  const [newEndDate, setNewEndDate] = useState(assignment.endDate);
+  const [updatedCurrentStartDate, setUpdatedCurrentStartDate] = useState(
+    fromProject.startDate
+  );
+  const [updatedCurrentEndDate, setUpdatedCurrentEndDate] = useState(
+    fromProject.endDate || ""
+  );
 
   const handleConfirm = () => {
-    onConfirm(newUtilization, previousUtilization);
+    onConfirm(
+      newUtilization,
+      previousUtilization,
+      newStartDate,
+      newEndDate,
+      updatedCurrentStartDate,
+      updatedCurrentEndDate
+    );
   };
 
   return (
@@ -43,6 +65,65 @@ export function UtilizationModal({
           </div>
         </div>
 
+        {/* Current Project Start Date (Editable) */}
+        <div className="mb-4">
+          <label htmlFor="currentStartDate" className="block mb-2 font-medium">
+            Current Project Start Date:
+          </label>
+          <input
+            type="date"
+            id="currentStartDate"
+            value={
+              new Date(updatedCurrentStartDate).toISOString().split("T")[0]
+            }
+            onChange={(e) => setUpdatedCurrentStartDate(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        {/* Current Project End Date (Editable) */}
+        <div className="mb-4">
+          <label htmlFor="currentEndDate" className="block mb-2 font-medium">
+            Current Project End Date:
+          </label>
+          <input
+            type="date"
+            id="currentEndDate"
+            value={new Date(updatedCurrentEndDate).toISOString().split("T")[0]}
+            onChange={(e) => setUpdatedCurrentEndDate(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        {/* New Start Date Field */}
+        <div className="mb-4">
+          <label htmlFor="newStartDate" className="block mb-2 font-medium">
+            New Start Date:
+          </label>
+          <input
+            type="date"
+            id="newStartDate"
+            value={newStartDate}
+            onChange={(e) => setNewStartDate(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        {/* New End Date Field */}
+        <div className="mb-4">
+          <label htmlFor="newEndDate" className="block mb-2 font-medium">
+            New End Date:
+          </label>
+          <input
+            type="date"
+            id="newEndDate"
+            value={newEndDate}
+            onChange={(e) => setNewEndDate(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        {/* Previous Utilization Field */}
         <div className="mb-4">
           <label
             htmlFor="previousUtilization"
@@ -67,6 +148,7 @@ export function UtilizationModal({
           </div>
         </div>
 
+        {/* New Utilization Field */}
         <div className="mb-6">
           <label htmlFor="newUtilization" className="block mb-2 font-medium">
             Utilization in {toProject.name}:
@@ -88,6 +170,7 @@ export function UtilizationModal({
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex justify-end space-x-2">
           <button
             onClick={onClose}
