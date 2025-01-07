@@ -83,7 +83,7 @@ export function ProjectBar({
         className={cn(
           "flex-1 rounded-lg relative transition-all duration-200",
           isOver ? "bg-blue-50 border-2 border-blue-400" : "bg-white",
-          selectedWeek ? "h-20" : "h-12" // Dynamically adjust height
+          selectedWeek ? "h-24" : "h-12" // Dynamically adjust height
         )}
       >
         <div className="flex h-full">
