@@ -7,21 +7,15 @@ import { Assignment } from "@/types/models";
 interface ResourceBarProps {
   assignment: Assignment;
   projectId: number;
-  width: number;
 }
 
-export function ResourceBar({
-  assignment,
-  projectId,
-  width,
-}: ResourceBarProps) {
+export function ResourceBar({ assignment, projectId }: ResourceBarProps) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: `${projectId}-${assignment.id}` });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    width: `${width}%`,
   };
 
   const getUtilizationColor = (utilization: number) => {
@@ -37,20 +31,13 @@ export function ResourceBar({
       style={style}
       {...attributes}
       {...listeners}
-      className={`h-full relative rounded-lg  border flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor}`}
+      className={`h-8 rounded-lg border flex items-center justify-center text-xs cursor-move overflow-hidden group ${utilizationColor}`}
       title={`${assignment.employee.name} (${assignment.utilisation}%)`}
     >
-      <div className="px-1 text-center">
+      <div className="px-2 py-1 text-center min-w-0">
         <div className="font-medium truncate">
-          {assignment.employee.name.split(" ").map((word, index) => (
-            <React.Fragment key={index}>
-              {word}
-              {index < assignment.employee.name.split(" ").length - 1 && <br />}
-            </React.Fragment>
-          ))}
-        </div>
-        <div className="text-gray-500 text-[10px]">
-          {assignment.utilisation}%
+          {assignment.employee.name.split(" ")[0]}{" "}
+          {/* Show only the first name */}
         </div>
       </div>
     </div>

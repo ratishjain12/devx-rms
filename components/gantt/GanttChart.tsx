@@ -137,10 +137,12 @@ export function GanttChart() {
     newProjects: Project[],
     newTempAssignments: TempAssignment[]
   ) => {
-    // Remove any future history if we're not at the latest state
-    const updatedHistory = projectsHistory.slice(0, currentHistoryIndex + 1);
+    console.log("Updating projects and tempAssignments:", {
+      newProjects,
+      newTempAssignments,
+    });
 
-    // Add new state to history
+    const updatedHistory = projectsHistory.slice(0, currentHistoryIndex + 1);
     const newHistoryEntry = {
       projects: newProjects,
       tempAssignments: newTempAssignments,
@@ -207,6 +209,14 @@ export function GanttChart() {
     startDate: string,
     endDate: string
   ) => {
+    console.log("Adding assignment:", {
+      projectId,
+      employeeId,
+      utilization,
+      startDate,
+      endDate,
+    });
+
     const newAssignment: TempNewAssignment = {
       type: "new",
       projectId,
@@ -217,13 +227,14 @@ export function GanttChart() {
     };
 
     const newTempAssignments = [...tempAssignments, newAssignment];
+    console.log("Updated Temp Assignments:", newTempAssignments);
 
     const selectedEmployee = allEmployees.find((e) => e.id === employeeId);
     if (selectedEmployee) {
       const newProjects = projects.map((project) => {
         if (project.id === projectId) {
           const tempUIAssignment: Assignment = {
-            id: -Date.now(),
+            id: -Date.now(), // Temporary ID for UI
             employeeId,
             projectId,
             startDate,
@@ -233,6 +244,12 @@ export function GanttChart() {
             project: project,
           };
 
+          console.log(
+            "Adding assignment to project:",
+            project.name,
+            tempUIAssignment
+          );
+
           return {
             ...project,
             assignments: [...project.assignments, tempUIAssignment],
@@ -241,6 +258,7 @@ export function GanttChart() {
         return project;
       });
 
+      console.log("Updated Projects:", newProjects);
       handleProjectsChange(newProjects, newTempAssignments);
     }
 
@@ -457,6 +475,7 @@ export function GanttChart() {
                           timelineEnd={timelineEnd}
                           onAddAssignment={handleAddAssignment}
                           selectedWeek={selectedWeek}
+                          weeks={weeks}
                         />
                       ))}
                     </div>

@@ -1,12 +1,6 @@
 // ProjectBar.tsx
 import React from "react";
-import {
-  format,
-  differenceInWeeks,
-  startOfWeek,
-  endOfWeek,
-  addDays,
-} from "date-fns";
+import { format, addDays } from "date-fns";
 import { Project } from "@/types/models";
 import { ResourceBar } from "./ResourceBar";
 import { PlusCircle } from "lucide-react";
@@ -19,41 +13,16 @@ interface ProjectBarProps {
   timelineEnd: Date;
   onAddAssignment: (projectId: number) => void;
   selectedWeek: Date | null;
+  weeks: Date[];
 }
 
 export function ProjectBar({
   project,
-  timelineStart,
-  timelineEnd,
+
   onAddAssignment,
-  selectedWeek,
+
+  weeks,
 }: ProjectBarProps) {
-  const startDate = startOfWeek(new Date(project.startDate));
-  const endDate = project.endDate
-    ? endOfWeek(new Date(project.endDate))
-    : timelineEnd;
-
-  // Calculate week-based positions
-  const totalWeeks = differenceInWeeks(timelineEnd, timelineStart);
-  const projectStartWeeks = Math.max(
-    0,
-    differenceInWeeks(startDate, timelineStart)
-  );
-  const projectEndWeeks = Math.min(
-    totalWeeks,
-    differenceInWeeks(endDate, timelineStart)
-  );
-  const projectDuration = projectEndWeeks - projectStartWeeks;
-
-  const startPercentage = (projectStartWeeks / totalWeeks) * 100;
-  const widthPercentage = (projectDuration / totalWeeks) * 100;
-
-  const isInWeek =
-    selectedWeek &&
-    startDate <= addDays(selectedWeek, 6) &&
-    endDate >= selectedWeek;
-
-  // Make the entire project bar area droppable
   const { setNodeRef, isOver } = useDroppable({
     id: `project-${project.id}`,
   });
@@ -73,8 +42,15 @@ export function ProjectBar({
     }
   };
 
+  console.log(
+    "Rendering ProjectBar for project:",
+    project.name,
+    project.assignments
+  );
+
   return (
     <div className="flex items-center min-w-max border-b hover:bg-gray-50">
+      {/* Project Name and Add Assignment Button */}
       <div className="w-48 flex-shrink-0 py-3 px-3 border-r bg-white">
         <div className="flex items-center justify-between gap-2">
           <div
@@ -102,33 +78,50 @@ export function ProjectBar({
         </div>
       </div>
 
+      {/* Weekly Resource Bars */}
       <div
         ref={setNodeRef}
         className={`flex-1 rounded-lg relative h-12 ${
           isOver ? "bg-blue-50" : ""
         }`}
       >
-        <div
-          className={`absolute rounded-lg top-0 h-full transition-colors 
-            ${isInWeek ? "bg-blue-100" : "bg-gray-100"}
-            ${isOver ? "border-2 border-blue-400" : "border border-blue-200"}
-          `}
-          style={{
-            left: `${startPercentage}%`,
-            width: `${widthPercentage}%`,
-            minWidth: "2px",
-          }}
-        >
-          <div className="flex h-full">
-            {project.assignments.map((assignment) => (
-              <ResourceBar
-                key={assignment.id}
-                assignment={assignment}
-                projectId={project.id}
-                width={100 / Math.max(1, project.assignments.length)}
-              />
-            ))}
-          </div>
+        <div className="flex h-full">
+          {weeks.map((week) => {
+            const weekStart = week;
+            const weekEnd = addDays(week, 6);
+
+            // Find assignments that fall within this week
+
+            const assignmentsInWeek = project.assignments.filter(
+              (assignment) => {
+                const assignmentStart = new Date(assignment.startDate);
+                const assignmentEnd = new Date(assignment.endDate);
+
+                // Check if the assignment overlaps with the week
+                return (
+                  (assignmentStart <= weekEnd && assignmentEnd >= weekStart) ||
+                  (assignmentStart <= weekStart && assignmentEnd >= weekEnd)
+                );
+              }
+            );
+
+            return (
+              <div
+                key={week.toISOString()}
+                className="w-[120px] shrink-0 border-r border-gray-200 relative"
+              >
+                <div className="absolute inset-0 flex flex-col gap-1 p-1">
+                  {assignmentsInWeek.map((assignment) => (
+                    <ResourceBar
+                      key={`${assignment.id}-${week.toISOString()}`}
+                      assignment={assignment}
+                      projectId={project.id}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
