@@ -8,7 +8,7 @@ interface ResourceCardProps {
   assignment: Assignment;
   projectId: number;
   week: Date;
-  isSelected: boolean;
+  isSelected: boolean | null;
 }
 
 export function ResourceCard({
@@ -26,13 +26,23 @@ export function ResourceCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: uniqueId });
+  } = useSortable({
+    id: uniqueId,
+    data: {
+      assignment,
+      projectId,
+      week,
+    },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: isDragging ? "none" : transition, // Remove transition during drag
     zIndex: isDragging ? 1000 : 1,
+    opacity: isDragging ? 0.8 : 1,
+    cursor: isDragging ? "grabbing" : "grab",
+    position: "relative" as const,
+    touchAction: "none",
   };
 
   const getUtilizationInfo = (utilization: number) => {
@@ -66,15 +76,21 @@ export function ResourceCard({
       {...attributes}
       {...listeners}
       className={`
-        w-full relative z-10 rounded border cursor-move transition-all text-sm
+        w-full rounded border transition-transform transform-gpu
         ${utilizationInfo.color} ${utilizationInfo.borderColor}
         ${isSelected ? "ring-1 ring-blue-400" : ""}
+        hover:shadow-sm active:shadow-md
+        ${isDragging ? "shadow-lg rotate-2" : ""}
       `}
     >
       <div className="px-2 py-1 flex items-center justify-between gap-1">
         <div className="flex items-center gap-1.5 min-w-0">
-          <UserCircle2 className={`w-4 h-4 ${utilizationInfo.textColor}`} />
-          <span className="font-medium text-gray-900 truncate">
+          <UserCircle2
+            className={`w-4 h-4 ${utilizationInfo.textColor} ${
+              isDragging ? "animate-pulse" : ""
+            }`}
+          />
+          <span className="font-medium text-gray-900 truncate text-sm">
             {assignment.employee.name.split(" ")[0]}
           </span>
         </div>
@@ -84,6 +100,9 @@ export function ResourceCard({
           {assignment.utilisation}%
         </div>
       </div>
+
+      {/* Drag handle indicator */}
+      <div className="absolute inset-y-0 left-0 w-1 bg-gray-200 opacity-0 group-hover:opacity-100 rounded-l" />
     </div>
   );
 }

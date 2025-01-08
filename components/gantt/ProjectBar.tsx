@@ -1,7 +1,7 @@
 import React from "react";
 import { addDays, isSameWeek } from "date-fns";
-import { Project } from "@/types/models";
-import { ResourceCard } from "./ResourceBar";
+import { Assignment, Project } from "@/types/models";
+import { ResourceCard } from "./ResourceCard";
 import { PlusCircle } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
 import { calculateProjectRequirementStatus, cn } from "@/lib/utils";
@@ -17,6 +17,65 @@ interface ProjectBarProps {
   onSelectWeek: (week: Date | null) => void;
 }
 
+// Custom component for droppable week column
+function WeekColumn({
+  project,
+  week,
+  isSelected,
+  assignments,
+  onSelectWeek,
+}: {
+  project: Project;
+  week: Date;
+  isSelected: boolean | null;
+  assignments: Assignment[];
+  onSelectWeek: (week: Date) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `project-${project.id}-week-${week.toISOString()}`,
+    data: {
+      projectId: project.id,
+      week: week,
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "shrink-0 border-r border-gray-200 transition-all duration-100 relative",
+        isSelected ? "w-[250px]" : "w-[190px]",
+        isOver ? "bg-blue-50" : "bg-white",
+        assignments.length > 0 ? "p-1" : ""
+      )}
+      onClick={() => onSelectWeek(week)}
+    >
+      {/* Visual feedback for drop target */}
+      {isOver && (
+        <div className="absolute inset-0 border-2 border-blue-400 rounded pointer-events-none" />
+      )}
+
+      {assignments.length > 0 ? (
+        <div className="space-y-1 relative">
+          {assignments.map((assignment) => (
+            <ResourceCard
+              key={`${assignment.id}-${week.toISOString()}`}
+              assignment={assignment}
+              projectId={project.id}
+              week={week}
+              isSelected={isSelected}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="h-8 flex items-center justify-center text-gray-400 text-xs">
+          {isSelected && "No resources"}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProjectBar({
   project,
   onAddAssignment,
@@ -24,10 +83,6 @@ export function ProjectBar({
   weeks,
   onSelectWeek,
 }: ProjectBarProps) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `project-${project.id}`,
-  });
-
   const requirementStatus = calculateProjectRequirementStatus(project);
 
   const getProgressInfo = () => {
@@ -70,13 +125,7 @@ export function ProjectBar({
       </div>
 
       {/* Resources Grid */}
-      <div
-        ref={setNodeRef}
-        className={cn(
-          "flex-1 relative transition-all duration-200",
-          isOver ? "bg-blue-50 border-2 border-blue-400" : "bg-white"
-        )}
-      >
+      <div className="flex-1 relative">
         <div className="flex h-full">
           {weeks.map((week) => {
             const weekStart = week;
@@ -97,33 +146,14 @@ export function ProjectBar({
             );
 
             return (
-              <div
+              <WeekColumn
                 key={week.toISOString()}
-                className={cn(
-                  "shrink-0 border-r border-gray-200 transition-all duration-100 relative",
-                  isSelected ? "w-[250px]" : "w-[190px]",
-                  assignmentsInWeek.length > 0 ? "p-1" : ""
-                )}
-                onClick={() => onSelectWeek(week)}
-              >
-                {assignmentsInWeek.length > 0 ? (
-                  <div className="space-y-1 p-1">
-                    {assignmentsInWeek.map((assignment) => (
-                      <ResourceCard
-                        key={`${assignment.id}-${week.toISOString()}`}
-                        assignment={assignment}
-                        projectId={project.id}
-                        week={week}
-                        isSelected={!!isSelected}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="h-8 flex items-center justify-center text-gray-400 text-xs">
-                    {isSelected && "No resources"}
-                  </div>
-                )}
-              </div>
+                project={project}
+                week={week}
+                isSelected={isSelected}
+                assignments={assignmentsInWeek}
+                onSelectWeek={onSelectWeek}
+              />
             );
           })}
         </div>
