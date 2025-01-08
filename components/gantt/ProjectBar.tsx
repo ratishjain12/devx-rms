@@ -15,6 +15,7 @@ interface ProjectBarProps {
   selectedWeek: Date | null;
   weeks: Date[];
   onSelectWeek: (week: Date | null) => void;
+  allProjects: Project[]; // Added to get all assignments across projects
 }
 
 // Custom component for droppable week column
@@ -24,12 +25,14 @@ function WeekColumn({
   isSelected,
   assignments,
   onSelectWeek,
+  allAssignments,
 }: {
   project: Project;
   week: Date;
   isSelected: boolean | null;
   assignments: Assignment[];
   onSelectWeek: (week: Date) => void;
+  allAssignments: Assignment[];
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `project-${project.id}-week-${week.toISOString()}`,
@@ -64,6 +67,7 @@ function WeekColumn({
               projectId={project.id}
               week={week}
               isSelected={isSelected}
+              allAssignments={allAssignments}
             />
           ))}
         </div>
@@ -82,8 +86,12 @@ export function ProjectBar({
   selectedWeek,
   weeks,
   onSelectWeek,
+  allProjects, // New prop
 }: ProjectBarProps) {
   const requirementStatus = calculateProjectRequirementStatus(project);
+
+  // Collect all assignments across all projects
+  const allAssignments = allProjects.flatMap((p) => p.assignments);
 
   const getProgressInfo = () => {
     const { status } = requirementStatus;
@@ -106,11 +114,12 @@ export function ProjectBar({
   const formattedEndDate = project.endDate
     ? format(new Date(project.endDate), "MMM d, yyyy")
     : "Ongoing";
+
   return (
     <div className="flex min-w-max border-b hover:bg-gray-50">
       {/* Project Info Column */}
       <div className="w-48 flex justify-between flex-shrink-0 py-2 px-3 border-r bg-white">
-        <div className="flex  flex-1 items-center justify-between gap-2">
+        <div className="flex flex-1 items-center justify-between gap-2">
           <div className="flex justify-between items-center gap-2 min-w-0">
             <div className={`w-2 h-2 rounded-full ${progressInfo.color}`} />
             <Link href={`/projects/${project.id}`} className="group truncate">
@@ -164,6 +173,7 @@ export function ProjectBar({
                 isSelected={isSelected}
                 assignments={assignmentsInWeek}
                 onSelectWeek={onSelectWeek}
+                allAssignments={allAssignments}
               />
             );
           })}

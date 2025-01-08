@@ -561,6 +561,7 @@ export function GanttChart() {
                           onAddAssignment={handleAddAssignment}
                           selectedWeek={selectedWeek}
                           weeks={weeks}
+                          allProjects={projects}
                           onSelectWeek={handleWeekSelect}
                         />
                       ))}
