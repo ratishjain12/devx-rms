@@ -267,34 +267,91 @@ export function GanttChart() {
     setShowAssignmentModal(false);
     setSelectedProject(null);
   };
-
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (active.id !== over?.id && over?.id) {
-      // Parse the unique ID to extract projectId, assignmentId, and week
-      const [projectId, assignmentId, week] = active.id.toString().split("-");
-      const toProjectId = (over.id as string).replace("project-", "");
+      // Log the raw IDs for debugging
+      console.log("Raw Active ID:", active.id);
+      console.log("Raw Over ID:", over.id);
 
-      const fromProject = projects.find((p) => p.id === parseInt(projectId));
-      const toProject = projects.find((p) => p.id === parseInt(toProjectId));
+      // Parse the active ID (format: projectId-assignmentId-week)
+      const activeParts = active.id.toString().split("-");
+      const activeProjectId = activeParts[0]; // First part: projectId
+      const assignmentId = activeParts[1]; // Second part: assignmentId
+      const activeWeek = activeParts.slice(2).join("-"); // Rest: week (full date string)
 
-      if (fromProject && toProject) {
-        const assignment = fromProject.assignments.find(
-          (a) => a.id === parseInt(assignmentId)
-        );
-        if (assignment) {
-          setMovedAssignment({
-            assignment,
-            fromProject,
-            toProject,
-          });
-          setShowUtilizationModal(true);
+      // Parse the over ID (format: project-projectId-week-week)
+      const overParts = over.id.toString().split("-");
+      const targetProjectId = overParts[1]; // Second part: projectId
+      const targetWeek = overParts.slice(3).join("-"); // Rest: week (full date string)
+
+      // Log the parsed values for debugging
+      console.log("Active Project ID:", activeProjectId);
+      console.log("Active Week:", activeWeek);
+      console.log("Target Project ID:", targetProjectId);
+      console.log("Target Week:", targetWeek);
+
+      // Helper function to calculate the start of the week (Sunday)
+      const getStartOfWeek = (dateString: string) => {
+        // Ensure the date string is valid
+        if (!dateString || isNaN(new Date(dateString).getTime())) {
+          throw new Error(`Invalid date string: ${dateString}`);
         }
+
+        const date = new Date(dateString);
+        const dayOfWeek = date.getDay(); // 0 (Sunday) to 6 (Saturday)
+        const startOfWeek = new Date(date);
+        startOfWeek.setDate(date.getDate() - dayOfWeek); // Move to Sunday
+        startOfWeek.setHours(0, 0, 0, 0); // Normalize time to midnight
+        return startOfWeek.toISOString(); // Return as ISO string for comparison
+      };
+
+      try {
+        // Calculate the start of the week for both active and target weeks
+        const activeStartOfWeek = getStartOfWeek(activeWeek);
+        const targetStartOfWeek = getStartOfWeek(targetWeek);
+
+        // Log the start of the week for debugging
+        console.log("Active Start of Week:", activeStartOfWeek);
+        console.log("Target Start of Week:", targetStartOfWeek);
+
+        // Check if the resource is being dragged within the same project and same week slot
+        const isSameProject = activeProjectId === targetProjectId;
+        const isSameWeekSlot = activeStartOfWeek === targetStartOfWeek;
+
+        if (!isSameProject || !isSameWeekSlot) {
+          // Show the utilization modal if either the project or week slot is different
+          const fromProject = projects.find(
+            (p) => p.id === parseInt(activeProjectId)
+          );
+          const toProject = projects.find(
+            (p) => p.id === parseInt(targetProjectId)
+          );
+
+          if (fromProject && toProject) {
+            const assignment = fromProject.assignments.find(
+              (a) => a.id === parseInt(assignmentId)
+            );
+            if (assignment) {
+              setMovedAssignment({
+                assignment,
+                fromProject,
+                toProject,
+              });
+              setShowUtilizationModal(true);
+            }
+          }
+        } else {
+          console.log(
+            "Dragging within the same week slot of the same project. No action needed."
+          );
+        }
+      } catch (error) {
+        console.error("Error calculating start of week:", error);
       }
     }
   };
-
   const handleThresholdChange = async (newThreshold: number) => {
     setAvailabilityThreshold(newThreshold);
     if (selectedWeek) {
