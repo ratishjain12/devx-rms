@@ -109,7 +109,10 @@ export function ProjectBar({
           <div className="flex items-center gap-2 min-w-0">
             <div className={`w-2 h-2 rounded-full ${progressInfo.color}`} />
             <Link href={`/projects/${project.id}`} className="group truncate">
-              <h3 className="font-medium truncate text-sm" title={project.name}>
+              <h3
+                className="font-medium capitalize truncate text-sm"
+                title={project.name}
+              >
                 {project.name}
               </h3>
             </Link>
@@ -119,7 +122,7 @@ export function ProjectBar({
             className="flex-shrink-0 text-blue-500 hover:text-blue-600 p-1 rounded hover:bg-blue-50"
             title="Add Assignment"
           >
-            <PlusCircle size={14} />
+            <PlusCircle size={18} />
           </button>
         </div>
       </div>

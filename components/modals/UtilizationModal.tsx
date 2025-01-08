@@ -66,63 +66,70 @@ export function UtilizationModal({
         </div>
 
         {/* Current Project Start Date (Editable) */}
-        <div className="mb-4">
-          <label htmlFor="currentStartDate" className="block mb-2 font-medium">
-            Current Project Start Date:
-          </label>
-          <input
-            type="date"
-            id="currentStartDate"
-            value={
-              new Date(updatedCurrentStartDate).toISOString().split("T")[0]
-            }
-            onChange={(e) => setUpdatedCurrentStartDate(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        </div>
+        <div className="flex gap-2 mb-4 ">
+          <div className="flex-1">
+            <label
+              htmlFor="currentStartDate"
+              className="block mb-2 font-medium"
+            >
+              Current Project Start Date:
+            </label>
+            <input
+              type="date"
+              id="currentStartDate"
+              value={
+                new Date(updatedCurrentStartDate).toISOString().split("T")[0]
+              }
+              onChange={(e) => setUpdatedCurrentStartDate(e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
 
-        {/* Current Project End Date (Editable) */}
-        <div className="mb-4">
-          <label htmlFor="currentEndDate" className="block mb-2 font-medium">
-            Current Project End Date:
-          </label>
-          <input
-            type="date"
-            id="currentEndDate"
-            value={new Date(updatedCurrentEndDate).toISOString().split("T")[0]}
-            onChange={(e) => setUpdatedCurrentEndDate(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
+          {/* Current Project End Date (Editable) */}
+          <div className="flex-1">
+            <label htmlFor="currentEndDate" className="block mb-2 font-medium">
+              Current Project End Date:
+            </label>
+            <input
+              type="date"
+              id="currentEndDate"
+              value={
+                new Date(updatedCurrentEndDate).toISOString().split("T")[0]
+              }
+              onChange={(e) => setUpdatedCurrentEndDate(e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
         </div>
-
         {/* New Start Date Field */}
-        <div className="mb-4">
-          <label htmlFor="newStartDate" className="block mb-2 font-medium">
-            New Start Date:
-          </label>
-          <input
-            type="date"
-            id="newStartDate"
-            value={newStartDate}
-            onChange={(e) => setNewStartDate(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        </div>
+        <div className="flex gap-2 mb-4">
+          <div className="flex-1">
+            <label htmlFor="newStartDate" className="block mb-2 font-medium">
+              New Start Date:
+            </label>
+            <input
+              type="date"
+              id="newStartDate"
+              value={newStartDate}
+              onChange={(e) => setNewStartDate(e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
 
-        {/* New End Date Field */}
-        <div className="mb-4">
-          <label htmlFor="newEndDate" className="block mb-2 font-medium">
-            New End Date:
-          </label>
-          <input
-            type="date"
-            id="newEndDate"
-            value={newEndDate}
-            onChange={(e) => setNewEndDate(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
+          {/* New End Date Field */}
+          <div className="flex-1">
+            <label htmlFor="newEndDate" className="block mb-2 font-medium">
+              New End Date:
+            </label>
+            <input
+              type="date"
+              id="newEndDate"
+              value={newEndDate}
+              onChange={(e) => setNewEndDate(e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
         </div>
-
         {/* Previous Utilization Field */}
         <div className="mb-4">
           <label
