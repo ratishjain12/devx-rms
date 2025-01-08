@@ -1,4 +1,3 @@
-// UtilizationModal.tsx
 import React, { useState } from "react";
 import { Assignment, Project } from "@/types/models";
 
@@ -6,14 +5,15 @@ interface UtilizationModalProps {
   assignment: Assignment;
   fromProject: Project;
   toProject: Project;
+  isSameProject: boolean;
+  targetWeekStart: string; // Start of the target week
+  targetWeekEnd: string; // End of the target week
   onConfirm: (
     newUtilization: number,
     previousUtilization: number,
     newStartDate: string,
-    newEndDate: string,
-    updatedCurrentStartDate: string,
-    updatedCurrentEndDate: string
-  ) => void; // Updated to include updated current dates
+    newEndDate: string
+  ) => void;
   onClose: () => void;
 }
 
@@ -21,31 +21,21 @@ export function UtilizationModal({
   assignment,
   fromProject,
   toProject,
+  isSameProject,
+  targetWeekStart,
+  targetWeekEnd,
   onConfirm,
   onClose,
 }: UtilizationModalProps) {
   const [newUtilization, setNewUtilization] = useState(assignment.utilisation);
   const [previousUtilization, setPreviousUtilization] = useState(
-    assignment.utilisation
+    isSameProject ? assignment.utilisation : 0
   );
-  const [newStartDate, setNewStartDate] = useState(assignment.startDate);
-  const [newEndDate, setNewEndDate] = useState(assignment.endDate);
-  const [updatedCurrentStartDate, setUpdatedCurrentStartDate] = useState(
-    fromProject.startDate
-  );
-  const [updatedCurrentEndDate, setUpdatedCurrentEndDate] = useState(
-    fromProject.endDate || ""
-  );
+  const [newStartDate, setNewStartDate] = useState(targetWeekStart); // Prefill with target week start
+  const [newEndDate, setNewEndDate] = useState(targetWeekEnd); // Prefill with target week end
 
   const handleConfirm = () => {
-    onConfirm(
-      newUtilization,
-      previousUtilization,
-      newStartDate,
-      newEndDate,
-      updatedCurrentStartDate,
-      updatedCurrentEndDate
-    );
+    onConfirm(newUtilization, previousUtilization, newStartDate, newEndDate);
   };
 
   return (
@@ -61,104 +51,71 @@ export function UtilizationModal({
             </span>
           </div>
           <div className="text-sm text-gray-600 mb-4">
-            Moving from {fromProject.name} to {toProject.name}
+            {isSameProject
+              ? `Moving within ${fromProject.name}`
+              : `Moving from ${fromProject.name} to ${toProject.name}`}
           </div>
         </div>
 
-        {/* Current Project Start Date (Editable) */}
-        <div className="flex gap-2 mb-4 ">
-          <div className="flex-1">
+        {/* New Start Date Field */}
+        <div className="mb-4">
+          <label htmlFor="newStartDate" className="block mb-2 font-medium">
+            New Start Date:
+          </label>
+          <input
+            type="date"
+            id="newStartDate"
+            value={newStartDate.split("T")[0]}
+            onChange={(e) => setNewStartDate(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        {/* New End Date Field */}
+        <div className="mb-4">
+          <label htmlFor="newEndDate" className="block mb-2 font-medium">
+            New End Date:
+          </label>
+          <input
+            type="date"
+            id="newEndDate"
+            value={newEndDate.split("T")[0]}
+            onChange={(e) => setNewEndDate(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        {/* Previous Utilization Field (only for different projects) */}
+        {!isSameProject && (
+          <div className="mb-4">
             <label
-              htmlFor="currentStartDate"
+              htmlFor="previousUtilization"
               className="block mb-2 font-medium"
             >
-              Current Project Start Date:
+              Utilization in {fromProject.name}:
             </label>
-            <input
-              type="date"
-              id="currentStartDate"
-              value={
-                new Date(updatedCurrentStartDate).toISOString().split("T")[0]
-              }
-              onChange={(e) => setUpdatedCurrentStartDate(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                id="previousUtilization"
+                value={previousUtilization}
+                onChange={(e) => setPreviousUtilization(Number(e.target.value))}
+                className="flex-1"
+                min="0"
+                max="100"
+                step="10"
+              />
+              <span className="w-16 text-center bg-gray-100 px-2 py-1 rounded">
+                {previousUtilization}%
+              </span>
+            </div>
           </div>
-
-          {/* Current Project End Date (Editable) */}
-          <div className="flex-1">
-            <label htmlFor="currentEndDate" className="block mb-2 font-medium">
-              Current Project End Date:
-            </label>
-            <input
-              type="date"
-              id="currentEndDate"
-              value={
-                new Date(updatedCurrentEndDate).toISOString().split("T")[0]
-              }
-              onChange={(e) => setUpdatedCurrentEndDate(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        </div>
-        {/* New Start Date Field */}
-        <div className="flex gap-2 mb-4">
-          <div className="flex-1">
-            <label htmlFor="newStartDate" className="block mb-2 font-medium">
-              New Start Date:
-            </label>
-            <input
-              type="date"
-              id="newStartDate"
-              value={newStartDate}
-              onChange={(e) => setNewStartDate(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-
-          {/* New End Date Field */}
-          <div className="flex-1">
-            <label htmlFor="newEndDate" className="block mb-2 font-medium">
-              New End Date:
-            </label>
-            <input
-              type="date"
-              id="newEndDate"
-              value={newEndDate}
-              onChange={(e) => setNewEndDate(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        </div>
-        {/* Previous Utilization Field */}
-        <div className="mb-4">
-          <label
-            htmlFor="previousUtilization"
-            className="block mb-2 font-medium"
-          >
-            Utilization in {fromProject.name}:
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              id="previousUtilization"
-              value={previousUtilization}
-              onChange={(e) => setPreviousUtilization(Number(e.target.value))}
-              className="flex-1"
-              min="0"
-              max="100"
-              step="10"
-            />
-            <span className="w-16 text-center bg-gray-100 px-2 py-1 rounded">
-              {previousUtilization}%
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* New Utilization Field */}
         <div className="mb-6">
           <label htmlFor="newUtilization" className="block mb-2 font-medium">
-            Utilization in {toProject.name}:
+            Utilization in {isSameProject ? fromProject.name : toProject.name}:
           </label>
           <div className="flex items-center gap-2">
             <input

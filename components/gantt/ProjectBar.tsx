@@ -1,5 +1,5 @@
 import React from "react";
-import { addDays, isSameWeek } from "date-fns";
+import { addDays, format, isSameWeek } from "date-fns";
 import { Assignment, Project } from "@/types/models";
 import { ResourceCard } from "./ResourceCard";
 import { PlusCircle } from "lucide-react";
@@ -100,13 +100,18 @@ export function ProjectBar({
   };
 
   const progressInfo = getProgressInfo();
-
+  const formattedStartDate = project.startDate
+    ? format(new Date(project.startDate), "MMM d")
+    : "N/A";
+  const formattedEndDate = project.endDate
+    ? format(new Date(project.endDate), "MMM d, yyyy")
+    : "Ongoing";
   return (
     <div className="flex min-w-max border-b hover:bg-gray-50">
       {/* Project Info Column */}
-      <div className="w-48 flex-shrink-0 py-2 px-3 border-r bg-white">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+      <div className="w-48 flex justify-between flex-shrink-0 py-2 px-3 border-r bg-white">
+        <div className="flex  flex-1 items-center justify-between gap-2">
+          <div className="flex justify-between items-center gap-2 min-w-0">
             <div className={`w-2 h-2 rounded-full ${progressInfo.color}`} />
             <Link href={`/projects/${project.id}`} className="group truncate">
               <h3
@@ -115,6 +120,9 @@ export function ProjectBar({
               >
                 {project.name}
               </h3>
+              <p className="text-xs text-wrap text-gray-500">
+                {formattedStartDate} - {formattedEndDate}
+              </p>
             </Link>
           </div>
           <button

@@ -89,6 +89,9 @@ export function GanttChart() {
     assignment: Assignment;
     fromProject: Project;
     toProject: Project;
+    isSameProject: boolean;
+    targetWeekStart: string; // Start of the target week
+    targetWeekEnd: string;
   } | null>(null);
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -334,10 +337,16 @@ export function GanttChart() {
               (a) => a.id === parseInt(assignmentId)
             );
             if (assignment) {
+              const targetWeekStart = new Date(targetWeek);
+              const targetWeekEnd = new Date(targetWeekStart);
+              targetWeekEnd.setDate(targetWeekStart.getDate() + 6);
               setMovedAssignment({
                 assignment,
                 fromProject,
                 toProject,
+                isSameProject,
+                targetWeekStart: targetWeekStart.toISOString(),
+                targetWeekEnd: targetWeekEnd.toISOString(),
               });
               setShowUtilizationModal(true);
             }
@@ -372,19 +381,19 @@ export function GanttChart() {
     newUtilization: number,
     previousUtilization: number,
     newStartDate: string,
-    newEndDate: string,
-    updatedCurrentStartDate: string,
-    updatedCurrentEndDate: string
+    newEndDate: string
   ) => {
     if (movedAssignment) {
+      const { assignment, fromProject, toProject } = movedAssignment;
+
       const tempMovedAssignment: TempMovedAssignment = {
         type: "moved",
-        fromProjectId: movedAssignment.fromProject.id,
-        toProjectId: movedAssignment.toProject.id,
+        fromProjectId: fromProject.id,
+        toProjectId: toProject.id,
         assignment: {
-          ...movedAssignment.assignment,
-          startDate: newStartDate, // Updated start date for the new project
-          endDate: newEndDate, // Updated end date for the new project
+          ...assignment,
+          startDate: newStartDate,
+          endDate: newEndDate,
         },
         previousUtilization,
         newUtilization,
@@ -393,33 +402,30 @@ export function GanttChart() {
       const newTempAssignments = [...tempAssignments, tempMovedAssignment];
 
       const newProjects = projects.map((project) => {
-        if (project.id === movedAssignment.fromProject.id) {
-          // Update the current project's start and end dates
+        if (project.id === fromProject.id) {
+          // Update the current project's assignment
           return {
             ...project,
-            startDate: updatedCurrentStartDate, // Updated current start date
-            endDate: updatedCurrentEndDate, // Updated current end date
             assignments:
               previousUtilization === 0
-                ? project.assignments.filter(
-                    (a) => a.id !== movedAssignment.assignment.id
-                  )
+                ? project.assignments.filter((a) => a.id !== assignment.id)
                 : project.assignments.map((a) =>
-                    a.id === movedAssignment.assignment.id
+                    a.id === assignment.id
                       ? { ...a, utilisation: previousUtilization }
                       : a
                   ),
           };
         }
-        if (project.id === movedAssignment.toProject.id && newUtilization > 0) {
+        if (project.id === toProject.id && newUtilization > 0) {
+          // Add the new assignment to the new project
           return {
             ...project,
             assignments: [
               ...project.assignments,
               {
-                ...movedAssignment.assignment,
-                startDate: newStartDate, // Updated start date for the new project
-                endDate: newEndDate, // Updated end date for the new project
+                ...assignment,
+                startDate: newStartDate,
+                endDate: newEndDate,
                 utilisation: newUtilization,
                 projectId: project.id,
               },
@@ -623,6 +629,9 @@ export function GanttChart() {
           fromProject={movedAssignment.fromProject}
           toProject={movedAssignment.toProject}
           onConfirm={handleUtilizationConfirm}
+          targetWeekStart={movedAssignment.targetWeekStart} // Pass target week start
+          targetWeekEnd={movedAssignment.targetWeekEnd}
+          isSameProject={movedAssignment.isSameProject}
           onClose={() => {
             setShowUtilizationModal(false);
             setMovedAssignment(null);
