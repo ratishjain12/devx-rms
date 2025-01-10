@@ -36,6 +36,7 @@ interface TempMovedAssignment {
   assignment: Assignment;
   previousUtilization: number;
   newUtilization: number;
+  isSameProject: boolean;
 }
 
 interface TempNewAssignment {
@@ -384,7 +385,8 @@ export function GanttChart() {
     newEndDate: string
   ) => {
     if (movedAssignment) {
-      const { assignment, fromProject, toProject } = movedAssignment;
+      const { assignment, fromProject, toProject, isSameProject } =
+        movedAssignment;
 
       const tempMovedAssignment: TempMovedAssignment = {
         type: "moved",
@@ -397,40 +399,58 @@ export function GanttChart() {
         },
         previousUtilization,
         newUtilization,
+        isSameProject: fromProject.id === toProject.id,
       };
 
       const newTempAssignments = [...tempAssignments, tempMovedAssignment];
 
       const newProjects = projects.map((project) => {
-        if (project.id === fromProject.id) {
-          // Update the current project's assignment
+        if (isSameProject && project.id === fromProject.id) {
+          // Handle same project move: update dates and utilization
           return {
             ...project,
-            assignments:
-              previousUtilization === 0
-                ? project.assignments.filter((a) => a.id !== assignment.id)
-                : project.assignments.map((a) =>
-                    a.id === assignment.id
-                      ? { ...a, utilisation: previousUtilization }
-                      : a
-                  ),
+            assignments: project.assignments.map((a) =>
+              a.id === assignment.id
+                ? {
+                    ...a,
+                    startDate: newStartDate,
+                    endDate: newEndDate,
+                    utilisation: newUtilization,
+                  }
+                : a
+            ),
           };
-        }
-        if (project.id === toProject.id && newUtilization > 0) {
-          // Add the new assignment to the new project
-          return {
-            ...project,
-            assignments: [
-              ...project.assignments,
-              {
-                ...assignment,
-                startDate: newStartDate,
-                endDate: newEndDate,
-                utilisation: newUtilization,
-                projectId: project.id,
-              },
-            ],
-          };
+        } else if (!isSameProject) {
+          if (project.id === fromProject.id) {
+            // Remove or update assignment in source project
+            return {
+              ...project,
+              assignments:
+                previousUtilization === 0
+                  ? project.assignments.filter((a) => a.id !== assignment.id)
+                  : project.assignments.map((a) =>
+                      a.id === assignment.id
+                        ? { ...a, utilisation: previousUtilization }
+                        : a
+                    ),
+            };
+          }
+          if (project.id === toProject.id && newUtilization > 0) {
+            // Add new assignment to target project
+            return {
+              ...project,
+              assignments: [
+                ...project.assignments,
+                {
+                  ...assignment,
+                  startDate: newStartDate,
+                  endDate: newEndDate,
+                  utilisation: newUtilization,
+                  projectId: project.id,
+                },
+              ],
+            };
+          }
         }
         return project;
       });
@@ -440,31 +460,14 @@ export function GanttChart() {
     setShowUtilizationModal(false);
     setMovedAssignment(null);
   };
+
   const handleSave = async () => {
     try {
       for (const temp of tempAssignments) {
         if (temp.type === "moved") {
-          if (temp.previousUtilization > 0) {
+          if (temp.isSameProject) {
             await fetch(`/api/assignments/${temp.assignment.id}`, {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                employeeId: temp.assignment.employeeId,
-                projectId: temp.fromProjectId,
-                startDate: temp.assignment.startDate,
-                endDate: temp.assignment.endDate,
-                utilisation: temp.previousUtilization,
-              }),
-            });
-          } else {
-            await fetch(`/api/assignments/${temp.assignment.id}`, {
-              method: "DELETE",
-            });
-          }
-
-          if (temp.newUtilization > 0) {
-            await fetch("/api/assignments", {
-              method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 employeeId: temp.assignment.employeeId,
@@ -474,6 +477,38 @@ export function GanttChart() {
                 utilisation: temp.newUtilization,
               }),
             });
+          } else {
+            if (temp.previousUtilization > 0) {
+              await fetch(`/api/assignments/${temp.assignment.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  employeeId: temp.assignment.employeeId,
+                  projectId: temp.fromProjectId,
+                  startDate: temp.assignment.startDate,
+                  endDate: temp.assignment.endDate,
+                  utilisation: temp.previousUtilization,
+                }),
+              });
+            } else {
+              await fetch(`/api/assignments/${temp.assignment.id}`, {
+                method: "DELETE",
+              });
+            }
+
+            if (temp.newUtilization > 0) {
+              await fetch("/api/assignments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  employeeId: temp.assignment.employeeId,
+                  projectId: temp.toProjectId,
+                  startDate: temp.assignment.startDate,
+                  endDate: temp.assignment.endDate,
+                  utilisation: temp.newUtilization,
+                }),
+              });
+            }
           }
         } else if (temp.type === "new") {
           await fetch("/api/assignments", {
