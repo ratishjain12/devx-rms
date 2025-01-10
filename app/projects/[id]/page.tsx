@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import { Project } from "@/types/models";
 import { ProjectStatus, Satisfaction } from "@prisma/client";
+import { useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -32,11 +33,7 @@ export default function ProjectDetails() {
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchProjectDetails();
-  }, [id]);
-
-  const fetchProjectDetails = async () => {
+  const fetchProjectDetails = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/projects/${id}`);
@@ -53,7 +50,11 @@ export default function ProjectDetails() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchProjectDetails();
+  }, [fetchProjectDetails]);
 
   const handleDeleteProject = async () => {
     if (!project) return;
