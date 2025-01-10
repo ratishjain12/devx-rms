@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Project } from "@/types/models";
+import { Satisfaction } from "@prisma/client";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -53,4 +54,23 @@ export const calculateProjectRequirementStatus = (
         : "unfulfilled",
     coverage,
   };
+};
+
+export const satisfactionFormatter = (text: string): string => {
+  const formatMap: Record<Satisfaction, string> = {
+    [Satisfaction.ABOUT_TO_FIRE]: "About to Fire",
+    [Satisfaction.NOT_HAPPY]: "Not Happy",
+    [Satisfaction.IDK]: "I Don't Know",
+    [Satisfaction.OK]: "Okay",
+    [Satisfaction.HAPPY]: "Happy",
+    [Satisfaction.OVER_THE_MOON]: "Over the Moon",
+  };
+
+  const enumKey = Object.keys(Satisfaction).find(
+    (key) => key === text.toUpperCase().replace(/ /g, "_")
+  );
+
+  return enumKey !== undefined
+    ? formatMap[Satisfaction[enumKey as keyof typeof Satisfaction]]
+    : "Unknown Satisfaction Level";
 };

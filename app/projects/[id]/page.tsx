@@ -1,14 +1,30 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import { Project } from "@/types/models";
 import { ProjectStatus, Satisfaction } from "@prisma/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, PenToolIcon as Tool, Briefcase, Star } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import {
+  Calendar,
+  PenToolIcon as Tool,
+  Briefcase,
+  Star,
+  Users,
+  Clock,
+  CheckSquare,
+} from "lucide-react";
+import { satisfactionFormatter } from "@/lib/utils";
 
 export default function ProjectDetails() {
   const router = useRouter();
@@ -16,7 +32,11 @@ export default function ProjectDetails() {
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProjectDetails = useCallback(async () => {
+  useEffect(() => {
+    fetchProjectDetails();
+  }, [id]);
+
+  const fetchProjectDetails = async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/projects/${id}`);
@@ -33,11 +53,7 @@ export default function ProjectDetails() {
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
-
-  useEffect(() => {
-    fetchProjectDetails();
-  }, [fetchProjectDetails]);
+  };
 
   const handleDeleteProject = async () => {
     if (!project) return;
@@ -66,13 +82,13 @@ export default function ProjectDetails() {
   const getStatusColor = (status: ProjectStatus) => {
     switch (status) {
       case ProjectStatus.CURRENT:
-        return "bg-green-500";
+        return "bg-green-600";
       case ProjectStatus.UPCOMING:
-        return "bg-yellow-500";
+        return "bg-yellow-600";
       case ProjectStatus.COMPLETED:
-        return "bg-blue-500";
+        return "bg-blue-600";
       default:
-        return "bg-gray-500";
+        return "bg-gray-600";
     }
   };
 
@@ -85,66 +101,129 @@ export default function ProjectDetails() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Button variant="outline" className="mb-4" onClick={() => router.back()}>
-        Back to Projects
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <Button variant="outline" className="mb-6" onClick={() => router.back()}>
+        <span className="mr-2">←</span> Back to Projects
       </Button>
 
-      <Card>
-        <CardHeader className="bg-secondary text-secondary-foreground">
-          <CardTitle className="flex justify-between items-center">
-            <span className="text-3xl">{project.name}</span>
-            <Badge className={`${getStatusColor(project.status)} text-white`}>
+      <Card className="shadow-lg">
+        <CardHeader className="bg-secondary">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-4xl capitalize font-bold mb-2">
+                {project.name}
+              </CardTitle>
+              <CardDescription className="text-lg">
+                <Badge className="font-semibold bg-blue-50 text-blue-500">
+                  {project.type}
+                </Badge>
+              </CardDescription>
+            </div>
+            <Badge
+              className={`${getStatusColor(
+                project.status
+              )} text-white text-lg px-3 py-1`}
+            >
               {project.status}
             </Badge>
-          </CardTitle>
+          </div>
         </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex items-center">
-            <Calendar className="mr-2 h-5 w-5" />
-            <span>
-              {new Date(project.startDate).toLocaleDateString()} -
-              {project.endDate
-                ? new Date(project.endDate).toLocaleDateString()
-                : "Ongoing"}
-            </span>
+        <CardContent className="pt-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center text-lg">
+                <Calendar className="mr-2 h-5 w-5 text-primary" />
+                <span className="font-semibold">Duration:</span>
+              </div>
+              <p className="ml-7">
+                {new Date(project.startDate).toLocaleDateString()} -
+                {project.endDate
+                  ? new Date(project.endDate).toLocaleDateString()
+                  : "Ongoing"}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center text-lg">
+                <Star className="mr-2 h-5 w-5 text-primary" />
+                <span className="font-semibold">Client Satisfaction:</span>
+              </div>
+              <p className="ml-7">
+                {satisfactionFormatter(
+                  project.client_satisfaction || Satisfaction.IDK
+                )}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center">
-            <Briefcase className="mr-2 h-5 w-5" />
-            <span>{project.type}</span>
-          </div>
-          <div className="flex items-center">
-            <Star className="mr-2 h-5 w-5" />
-            <span>
-              Client Satisfaction:{" "}
-              {project.client_satisfaction || Satisfaction.IDK}
-            </span>
-          </div>
-          <div className="flex items-center">
-            <Tool className="mr-2 h-5 w-5" />
-            <span>{project.tools?.join(", ") || "No tools specified"}</span>
-          </div>
+
+          <Separator />
+
           <div>
-            <h3 className="text-xl font-semibold mb-2">Assigned Employees</h3>
+            <h3 className="text-2xl font-semibold mb-3 flex items-center">
+              <Tool className="mr-2 h-6 w-6 text-primary" />
+              Tools Used
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {project.tools && project.tools.length > 0 ? (
+                project.tools.map((tool, index) => (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    className="text-md px-3 py-1 capitalize"
+                  >
+                    {tool}
+                  </Badge>
+                ))
+              ) : (
+                <p>No tools specified</p>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div>
+            <h3 className="text-2xl font-semibold mb-3 flex items-center">
+              <Users className="mr-2 h-6 w-6 text-primary" />
+              Assigned Employees
+            </h3>
             {project.assignments && project.assignments.length > 0 ? (
-              <ul className="list-disc pl-5">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {project.assignments.map((assignment) => (
-                  <li key={assignment.id}>{assignment.employee.name}</li>
+                  <li key={assignment.id} className="flex items-center">
+                    <CheckSquare className="mr-2 h-4 w-4 text-green-500" />
+                    {assignment.employee.name}
+                  </li>
                 ))}
               </ul>
             ) : (
               <p>No employees assigned</p>
             )}
           </div>
+
+          <Separator />
+
           <div>
-            <h3 className="text-xl font-semibold mb-2">Project Requirements</h3>
+            <h3 className="text-2xl font-semibold mb-3 flex items-center">
+              <Briefcase className="mr-2 h-6 w-6 text-primary" />
+              Project Requirements
+            </h3>
             {project.projectRequirements &&
             project.projectRequirements.length > 0 ? (
-              <ul className="list-disc pl-5">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {project.projectRequirements.map((req) => (
-                  <li key={req.id}>
-                    {req.role.name || "Unknown Role"} - {req.seniority} (
-                    {req.quantity})
+                  <li key={req.id} className="bg-secondary rounded-lg p-3">
+                    <p className="font-semibold">
+                      {req.role.name || "Unknown Role"}
+                    </p>
+                    <p>Seniority: {req.seniority}</p>
+                    <p>Quantity: {req.quantity}</p>
+                    <p className="text-sm text-muted-foreground">
+                      <Clock className="inline mr-1 h-4 w-4" />
+                      {new Date(req.startDate).toLocaleDateString()} -
+                      {req.endDate
+                        ? new Date(req.endDate).toLocaleDateString()
+                        : "Ongoing"}
+                    </p>
                   </li>
                 ))}
               </ul>
@@ -152,7 +231,11 @@ export default function ProjectDetails() {
               <p>No project requirements specified</p>
             )}
           </div>
-          <div className="flex justify-end space-x-2 mt-4">
+
+          <div className="flex justify-end space-x-2 mt-6">
+            <Button variant="outline" asChild>
+              <a href={`/projects/${project.id}/edit`}>Edit Project</a>
+            </Button>
             <Button variant="destructive" onClick={handleDeleteProject}>
               Delete Project
             </Button>

@@ -19,6 +19,7 @@ import {
 import { ProjectStatus, Satisfaction, Seniority } from "@prisma/client";
 import { toast } from "@/hooks/use-toast";
 import { Role, Type } from "@/types/models";
+import { satisfactionFormatter } from "@/lib/utils";
 
 interface ProjectRequirement {
   roleId: string;
@@ -288,7 +289,7 @@ export function AddProjectModal({
           <div>
             <Label htmlFor="client_satisfaction">Client Satisfaction</Label>
             <Select
-              value={projectData.client_satisfaction}
+              value={satisfactionFormatter(projectData.client_satisfaction)}
               onValueChange={(value) =>
                 setProjectData((prev) => ({
                   ...prev,
@@ -302,7 +303,7 @@ export function AddProjectModal({
               <SelectContent>
                 {Object.values(Satisfaction).map((satisfaction) => (
                   <SelectItem key={satisfaction} value={satisfaction}>
-                    {satisfaction}
+                    {satisfactionFormatter(satisfaction)}
                   </SelectItem>
                 ))}
               </SelectContent>

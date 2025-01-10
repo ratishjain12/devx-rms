@@ -10,7 +10,7 @@ interface ResourceCardProps {
   projectId: number;
   week: Date;
   isSelected: boolean | null;
-  allAssignments: Assignment[]; // New prop for all assignments
+  allAssignments: Assignment[];
 }
 
 export function ResourceCard({
@@ -73,22 +73,29 @@ export function ResourceCard({
   const getUtilizationInfo = (totalUtilization: number) => {
     if (totalUtilization < 50) {
       return {
-        color: "bg-red-50",
+        color: "bg-red-100",
         borderColor: "border-red-200",
         textColor: "text-red-700",
       };
     }
     if (totalUtilization >= 50 && totalUtilization < 80) {
       return {
-        color: "bg-yellow-50",
+        color: "bg-yellow-100",
         borderColor: "border-yellow-200",
         textColor: "text-yellow-700",
       };
     }
+    if (totalUtilization >= 80 && totalUtilization <= 100) {
+      return {
+        color: "bg-green-200",
+        borderColor: "border-green-300",
+        textColor: "text-black",
+      };
+    }
     return {
-      color: "bg-green-50",
-      borderColor: "border-green-200",
-      textColor: "text-green-700",
+      color: "bg-green-500",
+      borderColor: "border-green-600",
+      textColor: "text-black",
     };
   };
 
@@ -123,12 +130,8 @@ export function ResourceCard({
           <span className={`text-xs ${utilizationInfo.textColor} font-medium`}>
             {assignment.utilisation}%
           </span>
-          <span className="text-xs text-gray-400">/</span>
-          <span
-            className={`text-xs ${
-              weeklyUtilization > 100 ? "text-red-700" : "text-gray-500"
-            } font-medium`}
-          >
+          <span className="text-xs text-gray-800">/</span>
+          <span className={`text-xs "text-gray-500" font-medium`}>
             {weeklyUtilization}%
           </span>
         </div>
