@@ -6,8 +6,7 @@ export interface Employee {
   seniority: Seniority;
   skills: string[];
   roles: string[];
-  currentUtilization?: number;
-  availableUtilization?: number;
+
   assignments: Assignment[];
 }
 

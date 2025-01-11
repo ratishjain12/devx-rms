@@ -35,21 +35,7 @@ const data = {
       url: "/projects",
       items: [],
     },
-    {
-      title: "Assign",
-      url: "/assign",
-      items: [],
-    },
-    // {
-    //   title: "Views",
-    //   url: "/views",
-    //   items: [],
-    // },
-    {
-      title: "Reports",
-      url: "/reports",
-      items: [],
-    },
+
     {
       title: "Settings",
       url: "/settings",

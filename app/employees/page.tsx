@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,8 +30,16 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { Employee, Skill, Role } from "@/types/models";
 import { Seniority } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Edit, Trash2 } from "lucide-react";
-import Link from "next/link";
+import { Search, Plus, Edit, Trash2, Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -47,17 +55,14 @@ export default function Employees() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const router = useRouter();
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
-  useEffect(() => {
-    fetchEmployees();
-    fetchSkills();
-    fetchRoles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearchQuery, selectedSeniority, selectedSkill, selectedRole]);
-
-  const fetchSkills = async () => {
+  const fetchSkills = useCallback(async () => {
     try {
       const response = await fetch("/api/skills");
       if (!response.ok) throw new Error("Failed to fetch skills");
@@ -71,9 +76,9 @@ export default function Employees() {
         variant: "destructive",
       });
     }
-  };
+  }, []);
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     try {
       const response = await fetch("/api/roles");
       if (!response.ok) throw new Error("Failed to fetch roles");
@@ -87,25 +92,16 @@ export default function Employees() {
         variant: "destructive",
       });
     }
-  };
+  }, []);
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     setIsLoading(true);
     try {
-      const queryParams = new URLSearchParams();
-      if (debouncedSearchQuery.trim())
-        queryParams.append("q", debouncedSearchQuery.trim());
-      if (selectedSeniority !== "ALL")
-        queryParams.append("seniority", selectedSeniority);
-      if (selectedSkill !== "ALL") queryParams.append("skill", selectedSkill);
-      if (selectedRole !== "ALL") queryParams.append("role", selectedRole);
-
-      const response = await fetch(
-        `/api/employees/search?${queryParams.toString()}`
-      );
+      const response = await fetch("/api/employees");
       if (!response.ok) throw new Error("Failed to fetch employees");
       const data = await response.json();
       setEmployees(data);
+      setTotalPages(Math.ceil(data.length / itemsPerPage));
     } catch (error) {
       console.error("Error fetching employees:", error);
       toast({
@@ -116,62 +112,100 @@ export default function Employees() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [itemsPerPage]);
 
-  const handleCreateOrUpdateEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingEmployee) return;
+  const handleCreateOrUpdateEmployee = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editingEmployee) return;
 
-    const isUpdate = !!editingEmployee.id;
-    const endpoint = isUpdate
-      ? `/api/employees/${editingEmployee.id}`
-      : "/api/employees";
-    const method = isUpdate ? "PUT" : "POST";
+      const isUpdate = !!editingEmployee.id;
+      const endpoint = isUpdate
+        ? `/api/employees/${editingEmployee.id}`
+        : "/api/employees";
+      const method = isUpdate ? "PUT" : "POST";
 
-    try {
-      const response = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...editingEmployee,
-          skills: selectedSkills,
-          roles: selectedRoles,
-        }),
-      });
+      try {
+        const response = await fetch(endpoint, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...editingEmployee,
+            skills: selectedSkills,
+            roles: selectedRoles,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(
-          isUpdate ? "Failed to update employee" : "Failed to create employee"
-        );
+        if (!response.ok) {
+          throw new Error(
+            isUpdate ? "Failed to update employee" : "Failed to create employee"
+          );
+        }
+
+        await fetchEmployees();
+        setEditingEmployee(null);
+        setSelectedSkills([]);
+        setSelectedRoles([]);
+        setIsEditDialogOpen(false);
+
+        toast({
+          title: "Success",
+          description: isUpdate
+            ? "Employee updated successfully"
+            : "Employee created successfully",
+        });
+      } catch (error) {
+        console.error("Error:", error);
+        toast({
+          title: "Error",
+          description: isUpdate
+            ? "Failed to update employee"
+            : "Failed to create employee",
+          variant: "destructive",
+        });
       }
+    },
+    [editingEmployee, selectedSkills, selectedRoles, fetchEmployees]
+  );
 
-      await fetchEmployees();
-      setEditingEmployee(null);
-      setSelectedSkills([]);
-      setSelectedRoles([]);
-      setIsEditDialogOpen(false);
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
 
-      toast({
-        title: "Success",
-        description: isUpdate
-          ? "Employee updated successfully"
-          : "Employee created successfully",
-      });
-    } catch (error) {
-      console.error("Error:", error);
-      toast({
-        title: "Error",
-        description: isUpdate
-          ? "Failed to update employee"
-          : "Failed to create employee",
-        variant: "destructive",
-      });
-    }
-  };
+  useEffect(() => {
+    fetchEmployees();
+    fetchSkills();
+    fetchRoles();
+  }, [
+    fetchEmployees,
+    fetchSkills,
+    fetchRoles,
+    debouncedSearchQuery,
+    selectedSeniority,
+    selectedSkill,
+    selectedRole,
+    currentPage,
+  ]);
+
+  // Filter and paginate employees
+  const filteredEmployees = employees
+    .filter((employee) => {
+      const matchesSearch = employee.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matchesSeniority =
+        selectedSeniority === "ALL" || employee.seniority === selectedSeniority;
+      const matchesSkill =
+        selectedSkill === "ALL" || employee.skills.includes(selectedSkill);
+      const matchesRole =
+        selectedRole === "ALL" || employee.roles.includes(selectedRole);
+      return matchesSearch && matchesSeniority && matchesSkill && matchesRole;
+    })
+    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">Employee Management</h1>
+      <h1 className="text-4xl font-bold mb-8">Employees</h1>
       <div className="mb-6 flex flex-wrap gap-4">
         <div className="flex-grow">
           <div className="relative">
@@ -181,7 +215,7 @@ export default function Employees() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           </div>
         </div>
         <Select value={selectedSeniority} onValueChange={setSelectedSeniority}>
@@ -202,7 +236,11 @@ export default function Employees() {
           <SelectContent>
             <SelectItem value="ALL">All Skills</SelectItem>
             {skills.map((skill) => (
-              <SelectItem key={skill.id} value={skill.name}>
+              <SelectItem
+                key={skill.id}
+                value={skill.name}
+                className="capitalize"
+              >
                 {skill.name}
               </SelectItem>
             ))}
@@ -235,113 +273,197 @@ export default function Employees() {
       {isLoading ? (
         <div className="text-center py-8">Loading...</div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Seniority</TableHead>
-              <TableHead>Current Project</TableHead>
-              <TableHead>Roles</TableHead>
-              <TableHead>Skills</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {employees.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell>
-                  <Link
-                    href={`/employees/${employee.id}`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {employee.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{employee.seniority}</TableCell>
-                <TableCell>
-                  {employee.assignments?.length
-                    ? employee.assignments.map((assignment) => (
-                        <div key={assignment.id}>{assignment.project.name}</div>
-                      ))
-                    : "Not Assigned"}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {employee.roles && employee.roles.length > 0
-                      ? employee.roles.map((role) => (
-                          <Badge key={role} variant="outline">
-                            {role}
-                          </Badge>
-                        ))
-                      : "No Roles"}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {employee.skills && employee.skills.length > 0
-                      ? employee.skills.map((skill) => (
-                          <Badge key={skill} variant="secondary">
-                            {skill}
-                          </Badge>
-                        ))
-                      : "No Skills"}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditingEmployee(employee);
-                        setSelectedSkills(employee.skills ?? []);
-                        setSelectedRoles(employee.roles ?? []);
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
-                      <Edit className="mr-2 h-4 w-4" /> Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={async () => {
-                        if (
-                          confirm(
-                            "Are you sure you want to delete this employee?"
-                          )
-                        ) {
-                          try {
-                            const response = await fetch(
-                              `/api/employees/${employee.id}`,
-                              { method: "DELETE" }
-                            );
-                            if (!response.ok)
-                              throw new Error("Failed to delete employee");
-                            await fetchEmployees();
-                            toast({
-                              title: "Success",
-                              description: "Employee deleted successfully",
-                            });
-                          } catch (error) {
-                            console.error("Error deleting employee:", error);
-                            toast({
-                              title: "Error",
-                              description: "Failed to delete employee",
-                              variant: "destructive",
-                            });
-                          }
-                        }
-                      }}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </Button>
-                  </div>
-                </TableCell>
+        <>
+          <Table className="border rounded-sm">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Seniority</TableHead>
+                <TableHead>Current Project</TableHead>
+                <TableHead>Roles</TableHead>
+                <TableHead>Skills</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredEmployees.map((employee) => (
+                <TableRow key={employee.id}>
+                  <TableCell>{employee.name}</TableCell>
+                  <TableCell className="capitalize">
+                    {employee.seniority.toLowerCase()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="relative group">
+                      {employee.assignments &&
+                      employee.assignments.length > 0 ? (
+                        <div>
+                          <span className="capitalize flex items-center">
+                            {employee.assignments[0].project.name}
+                            <span className="border rounded-full flex items-center justify-center w-8 h-8 ml-2">
+                              {employee.assignments.length > 1 &&
+                                `+${employee.assignments.length - 1}`}
+                            </span>
+                          </span>
+                          {employee.assignments.length > 1 && (
+                            <div className="absolute left-0  top-full mt-1 hidden w-48 bg-white border border-gray-200 rounded-md shadow-md group-hover:block z-10">
+                              <div className="p-2 text-sm">
+                                {employee.assignments.map(
+                                  (assignment, index) => (
+                                    <div key={index}>
+                                      {assignment.project.name}
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {employee.roles && employee.roles.length > 0
+                        ? employee.roles.map((role) => (
+                            <Badge key={role} variant="outline">
+                              {role}
+                            </Badge>
+                          ))
+                        : "-"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {employee.skills && employee.skills.length > 0
+                        ? employee.skills.map((skill) => (
+                            <Badge key={skill} variant="secondary">
+                              {skill}
+                            </Badge>
+                          ))
+                        : "-"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingEmployee(employee);
+                          setSelectedSkills(employee.skills ?? []);
+                          setSelectedRoles(employee.roles ?? []);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/employees/${employee.id}`)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={async () => {
+                          if (
+                            confirm(
+                              "Are you sure you want to delete this employee?"
+                            )
+                          ) {
+                            try {
+                              const response = await fetch(
+                                `/api/employees/${employee.id}`,
+                                { method: "DELETE" }
+                              );
+                              if (!response.ok)
+                                throw new Error("Failed to delete employee");
+                              await fetchEmployees();
+                              toast({
+                                title: "Success",
+                                description: "Employee deleted successfully",
+                              });
+                            } catch (error) {
+                              console.error("Error deleting employee:", error);
+                              toast({
+                                title: "Error",
+                                description: "Failed to delete employee",
+                                variant: "destructive",
+                              });
+                            }
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {filteredEmployees.length > 0 && (
+            <div className="mt-4 flex justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handlePageChange(Math.max(1, currentPage - 1));
+                      }}
+                      aria-disabled={currentPage === 1}
+                      className={
+                        currentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(page);
+                          }}
+                          isActive={currentPage === page}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )
+                  )}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handlePageChange(Math.min(totalPages, currentPage + 1));
+                      }}
+                      aria-disabled={currentPage === totalPages}
+                      className={
+                        currentPage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </>
       )}
+
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
