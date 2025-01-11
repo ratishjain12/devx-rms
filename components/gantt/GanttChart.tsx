@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   DndContext,
   closestCenter,
@@ -28,6 +28,7 @@ import { Project, Employee, Assignment } from "@/types/models";
 import { AddProjectModal } from "../modals/AddProjectModal";
 import { Undo2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -111,6 +112,116 @@ export function GanttChart() {
     fetchAllEmployees();
   }, []);
 
+  const handleUndo = useCallback(() => {
+    if (currentHistoryIndex > 0) {
+      const newIndex = currentHistoryIndex - 1;
+      const previousState = projectsHistory[newIndex];
+
+      setCurrentHistoryIndex(newIndex);
+      setProjects(previousState.projects);
+      setTempAssignments(previousState.tempAssignments);
+    }
+  }, [currentHistoryIndex, projectsHistory]);
+
+  const handleSave = useCallback(async () => {
+    try {
+      for (const temp of tempAssignments) {
+        if (temp.type === "moved") {
+          if (temp.isSameProject) {
+            await fetch(`/api/assignments/${temp.assignment.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                employeeId: temp.assignment.employeeId,
+                projectId: temp.toProjectId,
+                startDate: temp.assignment.startDate,
+                endDate: temp.assignment.endDate,
+                utilisation: temp.newUtilization,
+              }),
+            });
+          } else {
+            if (temp.previousUtilization > 0) {
+              await fetch(`/api/assignments/${temp.assignment.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  employeeId: temp.assignment.employeeId,
+                  projectId: temp.fromProjectId,
+                  startDate: temp.assignment.startDate,
+                  endDate: temp.assignment.endDate,
+                  utilisation: temp.previousUtilization,
+                }),
+              });
+            } else {
+              await fetch(`/api/assignments/${temp.assignment.id}`, {
+                method: "DELETE",
+              });
+            }
+
+            if (temp.newUtilization > 0) {
+              await fetch("/api/assignments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  employeeId: temp.assignment.employeeId,
+                  projectId: temp.toProjectId,
+                  startDate: temp.assignment.startDate,
+                  endDate: temp.assignment.endDate,
+                  utilisation: temp.newUtilization,
+                }),
+              });
+            }
+          }
+        } else if (temp.type === "new") {
+          await fetch("/api/assignments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              employeeId: temp.employeeId,
+              projectId: temp.projectId,
+              startDate: temp.startDate,
+              endDate: temp.endDate,
+              utilisation: temp.utilisation,
+            }),
+          });
+        }
+      }
+
+      await fetchProjects();
+      setTempAssignments([]);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error("Error saving changes:", error);
+    }
+  }, [tempAssignments]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isCmdOrCtrl = event.metaKey || event.ctrlKey;
+
+      if (isCmdOrCtrl && event.key === "s") {
+        event.preventDefault();
+        handleSave();
+        toast({
+          title: "Changes Saved",
+          description: "Your changes have been saved successfully.",
+        });
+      }
+
+      if (isCmdOrCtrl && event.key === "z") {
+        event.preventDefault();
+        handleUndo();
+        toast({
+          title: "Undo",
+          description: "The last action has been undone.",
+        });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave, handleUndo]);
+
   const fetchProjects = async () => {
     try {
       const response = await fetch("/api/projects");
@@ -159,17 +270,6 @@ export function GanttChart() {
     setProjects(newProjects);
     setTempAssignments(newTempAssignments);
     setHasUnsavedChanges(true);
-  };
-
-  const handleUndo = () => {
-    if (currentHistoryIndex > 0) {
-      const newIndex = currentHistoryIndex - 1;
-      const previousState = projectsHistory[newIndex];
-
-      setCurrentHistoryIndex(newIndex);
-      setProjects(previousState.projects);
-      setTempAssignments(previousState.tempAssignments);
-    }
   };
 
   const handleReset = () => {
@@ -459,78 +559,6 @@ export function GanttChart() {
     }
     setShowUtilizationModal(false);
     setMovedAssignment(null);
-  };
-
-  const handleSave = async () => {
-    try {
-      for (const temp of tempAssignments) {
-        if (temp.type === "moved") {
-          if (temp.isSameProject) {
-            await fetch(`/api/assignments/${temp.assignment.id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                employeeId: temp.assignment.employeeId,
-                projectId: temp.toProjectId,
-                startDate: temp.assignment.startDate,
-                endDate: temp.assignment.endDate,
-                utilisation: temp.newUtilization,
-              }),
-            });
-          } else {
-            if (temp.previousUtilization > 0) {
-              await fetch(`/api/assignments/${temp.assignment.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  employeeId: temp.assignment.employeeId,
-                  projectId: temp.fromProjectId,
-                  startDate: temp.assignment.startDate,
-                  endDate: temp.assignment.endDate,
-                  utilisation: temp.previousUtilization,
-                }),
-              });
-            } else {
-              await fetch(`/api/assignments/${temp.assignment.id}`, {
-                method: "DELETE",
-              });
-            }
-
-            if (temp.newUtilization > 0) {
-              await fetch("/api/assignments", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  employeeId: temp.assignment.employeeId,
-                  projectId: temp.toProjectId,
-                  startDate: temp.assignment.startDate,
-                  endDate: temp.assignment.endDate,
-                  utilisation: temp.newUtilization,
-                }),
-              });
-            }
-          }
-        } else if (temp.type === "new") {
-          await fetch("/api/assignments", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              employeeId: temp.employeeId,
-              projectId: temp.projectId,
-              startDate: temp.startDate,
-              endDate: temp.endDate,
-              utilisation: temp.utilisation,
-            }),
-          });
-        }
-      }
-
-      await fetchProjects();
-      setTempAssignments([]);
-      setHasUnsavedChanges(false);
-    } catch (error) {
-      console.error("Error saving changes:", error);
-    }
   };
 
   // Update the grid structure in GanttChart.tsx

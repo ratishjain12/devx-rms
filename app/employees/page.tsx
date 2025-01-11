@@ -260,8 +260,9 @@ export default function Employees() {
                 <TableCell>{employee.seniority}</TableCell>
                 <TableCell>
                   {employee.assignments?.length
-                    ? employee.assignments[employee.assignments.length - 1]
-                        .project.name
+                    ? employee.assignments.map((assignment) => (
+                        <div key={assignment.id}>{assignment.project.name}</div>
+                      ))
                     : "Not Assigned"}
                 </TableCell>
                 <TableCell>
