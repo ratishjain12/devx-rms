@@ -299,13 +299,14 @@ export default function Employees() {
                         <div>
                           <span className="capitalize flex items-center">
                             {employee.assignments[0].project.name}
-                            <span className="border rounded-full flex items-center justify-center w-8 h-8 ml-2">
-                              {employee.assignments.length > 1 &&
-                                `+${employee.assignments.length - 1}`}
-                            </span>
+                            {employee.assignments.length > 1 && (
+                              <span className="border rounded-full flex items-center justify-center w-8 h-8 ml-2">
+                                {`+${employee.assignments.length - 1}`}
+                              </span>
+                            )}
                           </span>
                           {employee.assignments.length > 1 && (
-                            <div className="absolute left-0  top-full mt-1 hidden w-48 bg-white border border-gray-200 rounded-md shadow-md group-hover:block z-10">
+                            <div className="absolute left-0 top-full mt-1 hidden w-48 bg-white border border-gray-200 rounded-md shadow-md group-hover:block z-10">
                               <div className="p-2 text-sm">
                                 {employee.assignments.map(
                                   (assignment, index) => (
