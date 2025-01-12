@@ -16,6 +16,16 @@ interface ProjectBarProps {
   weeks: Date[];
   onSelectWeek: (week: Date | null) => void;
   allProjects: Project[]; // Added to get all assignments across projects
+  onUpdateAssignment?: (
+    assignmentId: number,
+    updates: {
+      employeeId: number;
+      projectId: number;
+      startDate: string;
+      endDate: string;
+      utilisation: number;
+    }
+  ) => void;
 }
 
 // Custom component for droppable week column
@@ -26,6 +36,7 @@ function WeekColumn({
   assignments,
   onSelectWeek,
   allAssignments,
+  onUpdateAssignment,
 }: {
   project: Project;
   week: Date;
@@ -33,6 +44,16 @@ function WeekColumn({
   assignments: Assignment[];
   onSelectWeek: (week: Date) => void;
   allAssignments: Assignment[];
+  onUpdateAssignment?: (
+    assignmentId: number,
+    updates: {
+      employeeId: number;
+      projectId: number;
+      startDate: string;
+      endDate: string;
+      utilisation: number;
+    }
+  ) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `project-${project.id}-week-${week.toISOString()}`,
@@ -64,9 +85,10 @@ function WeekColumn({
             <ResourceCard
               key={`${assignment.id}-${week.toISOString()}`}
               assignment={assignment}
-              projectId={project.id}
+              project={project}
               week={week}
               isSelected={isSelected}
+              onUpdateAssignment={onUpdateAssignment}
               allAssignments={allAssignments}
             />
           ))}
@@ -87,6 +109,7 @@ export function ProjectBar({
   weeks,
   onSelectWeek,
   allProjects, // New prop
+  onUpdateAssignment,
 }: ProjectBarProps) {
   const requirementStatus = calculateProjectRequirementStatus(project);
 
@@ -174,6 +197,7 @@ export function ProjectBar({
                 assignments={assignmentsInWeek}
                 onSelectWeek={onSelectWeek}
                 allAssignments={allAssignments}
+                onUpdateAssignment={onUpdateAssignment}
               />
             );
           })}

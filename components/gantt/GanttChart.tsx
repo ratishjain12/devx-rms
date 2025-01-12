@@ -29,6 +29,7 @@ import { AddProjectModal } from "../modals/AddProjectModal";
 import { Undo2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import EmployeeDetails from "@/app/employees/[id]/page";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -49,7 +50,22 @@ interface TempNewAssignment {
   utilisation: number;
 }
 
-type TempAssignment = TempNewAssignment | TempMovedAssignment;
+interface TempEditedAssignment {
+  type: "edited";
+  assignmentId: number;
+  updates: {
+    employeeId: number;
+    projectId: number;
+    startDate: string;
+    endDate: string;
+    utilisation: number;
+  };
+}
+
+type TempAssignment =
+  | TempNewAssignment
+  | TempMovedAssignment
+  | TempEditedAssignment;
 
 const calculateTimelineWeeks = (): Date[] => {
   const today = new Date();
@@ -126,7 +142,19 @@ export function GanttChart() {
   const handleSave = useCallback(async () => {
     try {
       for (const temp of tempAssignments) {
-        if (temp.type === "moved") {
+        if (temp.type === "edited") {
+          await fetch(`/api/assignments/${temp.assignmentId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              employeeId: temp.updates.employeeId,
+              projectId: temp.updates.projectId,
+              startDate: temp.updates.startDate,
+              endDate: temp.updates.endDate,
+              utilisation: temp.updates.utilisation,
+            }),
+          });
+        } else if (temp.type === "moved") {
           if (temp.isSameProject) {
             await fetch(`/api/assignments/${temp.assignment.id}`, {
               method: "PUT",
@@ -270,6 +298,39 @@ export function GanttChart() {
     setProjects(newProjects);
     setTempAssignments(newTempAssignments);
     setHasUnsavedChanges(true);
+  };
+
+  const handleUpdateAssignment = (
+    assignmentId: number,
+    updates: {
+      employeeId: number;
+      projectId: number;
+      startDate: string;
+      endDate: string;
+      utilisation: number;
+    }
+  ) => {
+    const newTempAssignment: TempEditedAssignment = {
+      type: "edited",
+      assignmentId,
+      updates,
+    };
+
+    const newTempAssignments = [...tempAssignments, newTempAssignment];
+
+    const newProjects = projects.map((project) => ({
+      ...project,
+      assignments: project.assignments.map((assignment) =>
+        assignment.id === assignmentId
+          ? {
+              ...assignment,
+              ...updates,
+            }
+          : assignment
+      ),
+    }));
+
+    handleProjectsChange(newProjects, newTempAssignments);
   };
 
   const handleReset = () => {
@@ -626,6 +687,7 @@ export function GanttChart() {
                           weeks={weeks}
                           allProjects={projects}
                           onSelectWeek={handleWeekSelect}
+                          onUpdateAssignment={handleUpdateAssignment}
                         />
                       ))}
                     </div>

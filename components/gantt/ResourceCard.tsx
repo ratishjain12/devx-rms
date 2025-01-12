@@ -1,26 +1,39 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Assignment } from "@/types/models";
+import { Assignment, Project } from "@/types/models";
 import { UserCircle2 } from "lucide-react";
 import { isSameWeek } from "date-fns";
+import { EditResourceModal } from "../modals/EditResourceModal";
 
 interface ResourceCardProps {
   assignment: Assignment;
-  projectId: number;
+  project: Project;
   week: Date;
   isSelected: boolean | null;
   allAssignments: Assignment[];
+  onUpdateAssignment?: (
+    assignmentId: number,
+    updates: {
+      employeeId: number;
+      projectId: number;
+      startDate: string;
+      endDate: string;
+      utilisation: number;
+    }
+  ) => void;
 }
 
 export function ResourceCard({
   assignment,
-  projectId,
+  project,
   week,
   isSelected,
   allAssignments,
+  onUpdateAssignment,
 }: ResourceCardProps) {
-  const uniqueId = `${projectId}-${assignment.id}-${week.toISOString()}`;
+  const [showEditModal, setShowEditModal] = useState(false);
+  const uniqueId = `${project.id}-${assignment.id}-${week.toISOString()}`;
 
   const {
     attributes,
@@ -33,7 +46,7 @@ export function ResourceCard({
     id: uniqueId,
     data: {
       assignment,
-      projectId,
+      projectId: project.id,
       week,
     },
   });
@@ -48,7 +61,6 @@ export function ResourceCard({
     touchAction: "none",
   };
 
-  // Calculate total utilization for the employee in this week
   const calculateWeeklyUtilization = () => {
     return allAssignments
       .filter((a) => a.employeeId === assignment.employeeId)
@@ -56,7 +68,6 @@ export function ResourceCard({
         const assignmentStart = new Date(currentAssignment.startDate);
         const assignmentEnd = new Date(currentAssignment.endDate);
 
-        // Check if the assignment falls within the current week
         if (
           isSameWeek(week, assignmentStart) ||
           isSameWeek(week, assignmentEnd) ||
@@ -101,44 +112,76 @@ export function ResourceCard({
 
   const utilizationInfo = getUtilizationInfo(weeklyUtilization);
 
+  const handleEditConfirm = (
+    assignmentId: number,
+    employeeId: number,
+    projectId: number,
+    startDate: string,
+    endDate: string,
+    utilization: number
+  ) => {
+    if (onUpdateAssignment) {
+      onUpdateAssignment(assignmentId, {
+        employeeId,
+        projectId,
+        startDate,
+        endDate,
+        utilisation: utilization,
+      });
+    }
+  };
+
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`
-        w-full rounded border transition-transform transform-gpu
-        ${utilizationInfo.color} ${utilizationInfo.borderColor}
-        ${isSelected ? "ring-1 ring-blue-400" : ""}
-        hover:shadow-sm active:shadow-md
-        ${isDragging ? "shadow-lg rotate-2" : ""}
-      `}
-    >
-      <div className="px-2 py-1 flex items-center justify-between gap-1">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <UserCircle2
-            className={`w-4 h-4 ${utilizationInfo.textColor} ${
-              isDragging ? "animate-pulse" : ""
-            }`}
-          />
-          <span className="font-medium text-gray-900 truncate text-sm">
-            {assignment.employee.name.split(" ")[0]}
-          </span>
+    <>
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        onDoubleClick={() => setShowEditModal(true)}
+        className={`
+          w-full rounded border transition-transform transform-gpu
+          ${utilizationInfo.color} ${utilizationInfo.borderColor}
+          ${isSelected ? "ring-1 ring-blue-400" : ""}
+          hover:shadow-sm active:shadow-md
+          ${isDragging ? "shadow-lg rotate-2" : ""}
+        `}
+      >
+        <div className="px-2 py-1 flex items-center justify-between gap-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <UserCircle2
+              className={`w-4 h-4 ${utilizationInfo.textColor} ${
+                isDragging ? "animate-pulse" : ""
+              }`}
+            />
+            <span className="font-medium text-gray-900 truncate text-sm">
+              {assignment.employee.name.split(" ")[0]}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <span
+              className={`text-xs ${utilizationInfo.textColor} font-medium`}
+            >
+              {assignment.utilisation}%
+            </span>
+            <span className="text-xs text-gray-800">/</span>
+            <span className={`text-xs "text-gray-500" font-medium`}>
+              {weeklyUtilization}%
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <span className={`text-xs ${utilizationInfo.textColor} font-medium`}>
-            {assignment.utilisation}%
-          </span>
-          <span className="text-xs text-gray-800">/</span>
-          <span className={`text-xs "text-gray-500" font-medium`}>
-            {weeklyUtilization}%
-          </span>
-        </div>
+
+        {/* Drag handle indicator */}
+        <div className="absolute inset-y-0 left-0 w-1 bg-gray-200 opacity-0 group-hover:opacity-100 rounded-l" />
       </div>
 
-      {/* Drag handle indicator */}
-      <div className="absolute inset-y-0 left-0 w-1 bg-gray-200 opacity-0 group-hover:opacity-100 rounded-l" />
-    </div>
+      <EditResourceModal
+        assignment={assignment}
+        project={project}
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onConfirm={handleEditConfirm}
+      />
+    </>
   );
 }

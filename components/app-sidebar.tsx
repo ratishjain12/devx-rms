@@ -35,7 +35,6 @@ const data = {
       url: "/projects",
       items: [],
     },
-
     {
       title: "Settings",
       url: "/settings",
