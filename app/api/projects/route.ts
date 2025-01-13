@@ -30,6 +30,9 @@ export async function GET(request: Request) {
           },
         },
       },
+      orderBy: {
+        name: "asc",
+      },
     });
 
     return NextResponse.json({ projects });

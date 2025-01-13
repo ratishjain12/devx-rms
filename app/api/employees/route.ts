@@ -40,6 +40,9 @@ export async function GET() {
           },
         },
       },
+      orderBy: {
+        name: "asc",
+      },
     });
 
     return NextResponse.json(employees);
