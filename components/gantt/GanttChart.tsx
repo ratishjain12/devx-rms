@@ -15,7 +15,14 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { addWeeks, subWeeks, startOfWeek, addDays } from "date-fns";
+import {
+  addWeeks,
+  subWeeks,
+  startOfWeek,
+  addDays,
+  endOfWeek,
+  isWithinInterval,
+} from "date-fns";
 import { ProjectBar } from "./ProjectBar";
 import { TimelineHeader } from "./TimelineHeader";
 import { UtilizationModal } from "../modals/UtilizationModal";
@@ -62,10 +69,17 @@ interface TempEditedAssignment {
   };
 }
 
+interface TempWeekDeleteAssignment {
+  type: "weekDelete";
+  assignmentId: number;
+  weekStart: string;
+}
+
 type TempAssignment =
   | TempNewAssignment
   | TempMovedAssignment
-  | TempEditedAssignment;
+  | TempEditedAssignment
+  | TempWeekDeleteAssignment;
 
 const calculateTimelineWeeks = (): Date[] => {
   const today = new Date();
@@ -114,6 +128,9 @@ export function GanttChart() {
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [availabilityThreshold, setAvailabilityThreshold] = useState(80);
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+  const [selectedResources, setSelectedResources] = useState(new Set<string>());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const weeks = useMemo(calculateTimelineWeeks, []);
   const timelineStart = weeks[0];
@@ -142,7 +159,58 @@ export function GanttChart() {
   const handleSave = useCallback(async () => {
     try {
       for (const temp of tempAssignments) {
-        if (temp.type === "edited") {
+        if (temp.type === "weekDelete") {
+          // Handle week deletions
+          const response = await fetch(
+            `/api/assignments/${temp.assignmentId}/week`,
+            {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                weekStart: temp.weekStart,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to delete week for assignment ${temp.assignmentId}`
+            );
+          }
+
+          const result = await response.json();
+          // Process the result
+          const projectIndex = projects.findIndex((p) =>
+            p.assignments.some((a) => a.id === temp.assignmentId)
+          );
+
+          if (projectIndex !== -1) {
+            const updatedProjects = [...projects];
+            if (result.newAssignment) {
+              // Handle split assignment case
+              updatedProjects[projectIndex].assignments = updatedProjects[
+                projectIndex
+              ].assignments.map((a) =>
+                a.id === temp.assignmentId ? result.updatedAssignment : a
+              );
+              updatedProjects[projectIndex].assignments.push(
+                result.newAssignment
+              );
+            } else {
+              // Handle simple update case
+              updatedProjects[projectIndex].assignments = updatedProjects[
+                projectIndex
+              ].assignments
+                .map((a) =>
+                  a.id === temp.assignmentId ? result.updatedAssignment : a
+                )
+                .filter((a) => new Date(a.startDate) <= new Date(a.endDate));
+            }
+            setProjects(updatedProjects);
+          }
+        } else if (temp.type === "edited") {
           await fetch(`/api/assignments/${temp.assignmentId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -221,10 +289,128 @@ export function GanttChart() {
     } catch (error) {
       console.error("Error saving changes:", error);
     }
-  }, [tempAssignments]);
+  }, [tempAssignments, projects]);
+
+  const handleProjectsChange = useCallback(
+    (newProjects: Project[], newTempAssignments: TempAssignment[]) => {
+      console.log("Updating projects and tempAssignments:", {
+        newProjects,
+        newTempAssignments,
+      });
+
+      const updatedHistory = projectsHistory.slice(0, currentHistoryIndex + 1);
+      const newHistoryEntry = {
+        projects: newProjects,
+        tempAssignments: newTempAssignments,
+      };
+
+      setProjectsHistory([...updatedHistory, newHistoryEntry]);
+      setCurrentHistoryIndex(currentHistoryIndex + 1);
+      setProjects(newProjects);
+      setTempAssignments(newTempAssignments);
+      setHasUnsavedChanges(true);
+    },
+    [currentHistoryIndex, projectsHistory]
+  );
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedResources.size === 0 || isDeleting) return;
+
+    try {
+      const newProjects = [...projects];
+      const newTempAssignments = [...tempAssignments];
+
+      selectedResources.forEach((resourceId) => {
+        const [projectId, assignmentId, weekStr] = resourceId
+          .match(/^(\d+)-(\d+)-(.+)$/)!
+          .slice(1);
+        const weekStart = startOfWeek(new Date(weekStr), { weekStartsOn: 0 });
+
+        // Add to tempAssignments for API call during save
+        newTempAssignments.push({
+          type: "weekDelete",
+          assignmentId: parseInt(assignmentId),
+          weekStart: weekStart.toISOString(),
+        });
+
+        const weekEnd = endOfWeek(weekStart);
+        const projectIndex = newProjects.findIndex(
+          (p) => p.id === parseInt(projectId)
+        );
+
+        if (projectIndex !== -1) {
+          const assignment = newProjects[projectIndex].assignments.find(
+            (a) => a.id === parseInt(assignmentId)
+          );
+
+          if (assignment) {
+            if (
+              isWithinInterval(new Date(assignment.startDate), {
+                start: weekStart,
+                end: weekEnd,
+              })
+            ) {
+              assignment.startDate = new Date(
+                weekEnd.getTime() + 86400000
+              ).toISOString();
+            } else if (
+              isWithinInterval(new Date(assignment.endDate), {
+                start: weekStart,
+                end: weekEnd,
+              })
+            ) {
+              assignment.endDate = new Date(
+                weekStart.getTime() - 86400000
+              ).toISOString();
+            }
+          }
+
+          // Filter out any assignments that might have become invalid
+          newProjects[projectIndex].assignments = newProjects[
+            projectIndex
+          ].assignments.filter(
+            (a) => new Date(a.startDate) <= new Date(a.endDate)
+          );
+        }
+      });
+
+      // Update state
+      setProjects(newProjects);
+      setTempAssignments(newTempAssignments);
+      setHasUnsavedChanges(true);
+      setSelectedResources(new Set());
+
+      // Add to history
+      const newHistoryEntry = {
+        projects: newProjects,
+        tempAssignments: newTempAssignments,
+      };
+      setProjectsHistory((prev) => [
+        ...prev.slice(0, currentHistoryIndex + 1),
+        newHistoryEntry,
+      ]);
+      setCurrentHistoryIndex((prev) => prev + 1);
+    } catch (error) {
+      console.error("Error handling deletions:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process deletions",
+        variant: "destructive",
+      });
+    }
+  }, [
+    selectedResources,
+    isDeleting,
+    projects,
+    tempAssignments,
+    currentHistoryIndex,
+  ]);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setIsShiftPressed(true);
+      }
       const isCmdOrCtrl = event.metaKey || event.ctrlKey;
 
       if (isCmdOrCtrl && event.key === "s") {
@@ -234,21 +420,49 @@ export function GanttChart() {
           title: "Changes Saved",
           description: "Your changes have been saved successfully.",
         });
-      }
-
-      if (isCmdOrCtrl && event.key === "z") {
+      } else if (isCmdOrCtrl && event.key === "z") {
         event.preventDefault();
         handleUndo();
         toast({
           title: "Undo",
           description: "The last action has been undone.",
         });
+      } else if (
+        (event.key === "Delete" || event.key === "Backspace") &&
+        selectedResources.size > 0
+      ) {
+        event.preventDefault();
+        await handleDeleteSelected();
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setIsShiftPressed(false);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave, handleUndo]);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [handleSave, handleUndo, selectedResources, handleDeleteSelected]);
+
+  const handleResourceSelect = (resourceId: string, selected: boolean) => {
+    setSelectedResources((prev) => {
+      const newSelection = new Set(prev);
+      if (selected) {
+        newSelection.add(resourceId);
+      } else {
+        newSelection.delete(resourceId);
+      }
+      return newSelection;
+    });
+    console.log(selectedResources);
+  };
 
   const fetchProjects = async () => {
     try {
@@ -276,28 +490,6 @@ export function GanttChart() {
     } catch (error) {
       console.error("Failed to fetch employees:", error);
     }
-  };
-
-  const handleProjectsChange = (
-    newProjects: Project[],
-    newTempAssignments: TempAssignment[]
-  ) => {
-    console.log("Updating projects and tempAssignments:", {
-      newProjects,
-      newTempAssignments,
-    });
-
-    const updatedHistory = projectsHistory.slice(0, currentHistoryIndex + 1);
-    const newHistoryEntry = {
-      projects: newProjects,
-      tempAssignments: newTempAssignments,
-    };
-
-    setProjectsHistory([...updatedHistory, newHistoryEntry]);
-    setCurrentHistoryIndex(currentHistoryIndex + 1);
-    setProjects(newProjects);
-    setTempAssignments(newTempAssignments);
-    setHasUnsavedChanges(true);
   };
 
   const handleUpdateAssignment = (
@@ -685,6 +877,9 @@ export function GanttChart() {
                           onAddAssignment={handleAddAssignment}
                           selectedWeek={selectedWeek}
                           weeks={weeks}
+                          isShiftPressed={isShiftPressed}
+                          onResourceSelect={handleResourceSelect}
+                          selectedResources={selectedResources}
                           allProjects={projects}
                           onSelectWeek={handleWeekSelect}
                           onUpdateAssignment={handleUpdateAssignment}
