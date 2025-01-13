@@ -228,6 +228,8 @@ export default function Projects() {
     setCurrentPage(page);
   }, []);
 
+  console.log(roles);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-8">Projects</h1>
@@ -282,7 +284,16 @@ export default function Projects() {
               endDate: null,
               tools: [],
               client_satisfaction: Satisfaction.IDK,
-              projectRequirements: [],
+              projectRequirements: [
+                {
+                  // Initial single requirement
+                  roleId: roles.length > 0 ? roles[0].id : 0,
+                  seniority: Seniority.JUNIOR,
+                  startDate: new Date().toISOString().split("T")[0],
+                  endDate: null,
+                  quantity: 1,
+                },
+              ],
             });
             setIsEditDialogOpen(true);
           }}
@@ -309,7 +320,7 @@ export default function Projects() {
             <TableBody>
               {filteredProjects.map((project) => (
                 <TableRow key={project.id}>
-                  <TableCell>{project.name}</TableCell>
+                  <TableCell className="capitalize">{project.name}</TableCell>
                   <TableCell>{project.type}</TableCell>
                   <TableCell>
                     <div className="flex items-center">
@@ -352,7 +363,7 @@ export default function Projects() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="relative group">
+                    <div className="relative group capitalize">
                       {project.tools && project.tools.length > 0 ? (
                         <div>
                           <span className="flex items-center gap-1">
@@ -509,7 +520,7 @@ export default function Projects() {
       )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingProject?.id ? "Edit Project" : "Add New Project"}
@@ -520,6 +531,7 @@ export default function Projects() {
               <Label>Name</Label>
               <Input
                 value={editingProject?.name || ""}
+                placeholder="Enter name"
                 onChange={(e) =>
                   setEditingProject((prev) =>
                     prev ? { ...prev, name: e.target.value } : null
@@ -632,7 +644,7 @@ export default function Projects() {
                     setEditingProject((prev) => {
                       if (!prev) return null;
                       const newRequirement: EditingProjectRequirement = {
-                        roleId: 0,
+                        roleId: roles.length > 0 ? roles[0].id : 0,
                         seniority: Seniority.JUNIOR,
                         startDate: prev.startDate,
                         endDate: prev.endDate,
@@ -652,16 +664,15 @@ export default function Projects() {
                 </Button>
               </div>
 
-              <div className="space-y-4 max-h-[300px] overflow-y-auto">
+              <div className="space-y-4 ">
                 {editingProject?.projectRequirements?.map((req, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-6 gap-2 items-end border rounded-lg p-4"
+                    className="grid grid-cols-3 gap-4 items-end border rounded-lg p-4"
                   >
-                    <div className="col-span-2">
+                    <div className="">
                       <Label>Role</Label>
                       <Select
-                        value={req.roleId?.toString() || ""}
                         onValueChange={(value) => {
                           setEditingProject((prev) => {
                             if (!prev) return null;
@@ -693,7 +704,7 @@ export default function Projects() {
                       </Select>
                     </div>
 
-                    <div>
+                    <div className="">
                       <Label>Seniority</Label>
                       <Select
                         value={req.seniority}
@@ -725,7 +736,7 @@ export default function Projects() {
                       </Select>
                     </div>
 
-                    <div>
+                    <div className="col-span-1">
                       <Label>Quantity</Label>
                       <Input
                         type="number"
@@ -747,11 +758,55 @@ export default function Projects() {
                         }}
                       />
                     </div>
+                    <div className="">
+                      <Label>Start Date</Label>
+                      <Input
+                        type="date"
+                        value={req.startDate?.split("T")[0] || ""}
+                        onChange={(e) => {
+                          const updatedReqs = [
+                            ...(editingProject?.projectRequirements || []),
+                          ];
+                          updatedReqs[index] = {
+                            ...req,
+                            startDate: e.target.value,
+                          };
+                          setEditingProject((prev) =>
+                            prev
+                              ? { ...prev, projectRequirements: updatedReqs }
+                              : null
+                          );
+                        }}
+                      />
+                    </div>
 
-                    <div>
+                    <div className="">
+                      <Label>End Date</Label>
+                      <Input
+                        type="date"
+                        value={req.endDate?.split("T")[0] || ""}
+                        onChange={(e) => {
+                          const updatedReqs = [
+                            ...(editingProject?.projectRequirements || []),
+                          ];
+                          updatedReqs[index] = {
+                            ...req,
+                            endDate: e.target.value || null,
+                          };
+                          setEditingProject((prev) =>
+                            prev
+                              ? { ...prev, projectRequirements: updatedReqs }
+                              : null
+                          );
+                        }}
+                      />
+                    </div>
+                    <div className="col-span-1 flex justify-end">
                       <Button
                         type="button"
                         variant="destructive"
+                        size="icon"
+                        className="mt-6"
                         onClick={() => {
                           const updatedReqs =
                             editingProject?.projectRequirements.filter(
@@ -764,7 +819,7 @@ export default function Projects() {
                           );
                         }}
                       >
-                        Remove
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
