@@ -29,7 +29,6 @@ import { toast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Employee, Skill, Role } from "@/types/models";
 import { Seniority } from "@prisma/client";
-import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Edit, Trash2, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -40,6 +39,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import CollapsibleTableCell from "@/components/common/CollapsibleCell";
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -326,24 +326,19 @@ export default function Employees() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {employee.roles && employee.roles.length > 0
-                        ? employee.roles.map((role) => (
-                            <Badge key={role} variant="outline">
-                              {role}
-                            </Badge>
-                          ))
-                        : "-"}
+                      {employee.roles && employee.roles.length > 0 && (
+                        <CollapsibleTableCell
+                          items={employee.roles}
+                          maxVisible={1}
+                        />
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {employee.skills && employee.skills.length > 0
-                        ? employee.skills.map((skill) => (
-                            <Badge key={skill} variant="secondary">
-                              {skill}
-                            </Badge>
-                          ))
-                        : "-"}
+                      {employee.skills && employee.skills.length > 0 && (
+                        <CollapsibleTableCell items={employee.skills} />
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
