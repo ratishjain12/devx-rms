@@ -2,7 +2,13 @@ import React from "react";
 import { TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
-export default function CollapsibleTableCell({ items, maxVisible = 2 }) {
+export default function CollapsibleTableCell({
+  items,
+  maxVisible = 2,
+}: {
+  items: string[];
+  maxVisible?: number;
+}) {
   if (!items || items.length === 0) return <TableCell>-</TableCell>;
 
   return (
