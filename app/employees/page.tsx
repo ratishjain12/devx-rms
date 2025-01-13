@@ -300,7 +300,7 @@ export default function Employees() {
                           <span className="capitalize flex items-center">
                             {employee.assignments[0].project.name}
                             {employee.assignments.length > 1 && (
-                              <span className="border rounded-full flex items-center justify-center w-8 h-8 ml-2">
+                              <span className="border rounded-full flex items-center justify-center w-[28px] h-[28px] text-sm ml-2">
                                 {`+${employee.assignments.length - 1}`}
                               </span>
                             )}

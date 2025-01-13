@@ -339,7 +339,7 @@ export default function Projects() {
                           <span className="capitalize flex items-center">
                             {`${project.projectRequirements[0].quantity} ${project.projectRequirements[0].role?.name} (${project.projectRequirements[0].seniority})`}
                             {project.projectRequirements.length > 1 && (
-                              <span className="border rounded-full flex items-center justify-center w-8 h-8 ml-2">
+                              <span className="border rounded-full flex items-center text-sm justify-center w-[28px] h-[28px] ml-2">
                                 {`+${project.projectRequirements.length - 1}`}
                               </span>
                             )}
@@ -376,7 +376,7 @@ export default function Projects() {
                               </Badge>
                             )}
                             {project.tools.length > 2 && (
-                              <span className="border rounded-full flex items-center justify-center w-8 h-8">
+                              <span className="border rounded-full flex items-center justify-center w-[28px] h-[28px]">
                                 {`+${project.tools.length - 2}`}
                               </span>
                             )}
