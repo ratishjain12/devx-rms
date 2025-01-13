@@ -16,6 +16,9 @@ interface ProjectBarProps {
   weeks: Date[];
   onSelectWeek: (week: Date | null) => void;
   allProjects: Project[]; // Added to get all assignments across projects
+  isShiftPressed: boolean;
+  selectedResources: Set<string>;
+  onResourceSelect: (resourceId: string, selected: boolean) => void;
   onUpdateAssignment?: (
     assignmentId: number,
     updates: {
@@ -36,6 +39,9 @@ function WeekColumn({
   assignments,
   onSelectWeek,
   allAssignments,
+  isShiftPressed,
+  selectedResources,
+  onResourceSelect,
   onUpdateAssignment,
 }: {
   project: Project;
@@ -44,6 +50,9 @@ function WeekColumn({
   assignments: Assignment[];
   onSelectWeek: (week: Date) => void;
   allAssignments: Assignment[];
+  isShiftPressed: boolean;
+  selectedResources: Set<string>;
+  onResourceSelect: (resourceId: string, selected: boolean) => void;
   onUpdateAssignment?: (
     assignmentId: number,
     updates: {
@@ -89,6 +98,9 @@ function WeekColumn({
               week={week}
               isSelected={isSelected}
               onUpdateAssignment={onUpdateAssignment}
+              isShiftPressed={isShiftPressed}
+              selectedResources={selectedResources}
+              onResourceSelect={onResourceSelect}
               allAssignments={allAssignments}
             />
           ))}
@@ -109,6 +121,9 @@ export function ProjectBar({
   weeks,
   onSelectWeek,
   allProjects, // New prop
+  isShiftPressed,
+  selectedResources,
+  onResourceSelect,
   onUpdateAssignment,
 }: ProjectBarProps) {
   const requirementStatus = calculateProjectRequirementStatus(project);
@@ -197,6 +212,9 @@ export function ProjectBar({
                 assignments={assignmentsInWeek}
                 onSelectWeek={onSelectWeek}
                 allAssignments={allAssignments}
+                isShiftPressed={isShiftPressed}
+                selectedResources={selectedResources}
+                onResourceSelect={onResourceSelect}
                 onUpdateAssignment={onUpdateAssignment}
               />
             );

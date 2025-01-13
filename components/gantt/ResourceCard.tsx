@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, KeyboardEvent, TouchEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Assignment, Project } from "@/types/models";
@@ -12,6 +12,9 @@ interface ResourceCardProps {
   week: Date;
   isSelected: boolean | null;
   allAssignments: Assignment[];
+  isShiftPressed: boolean;
+  selectedResources: Set<string>;
+  onResourceSelect: (resourceId: string, selected: boolean) => void;
   onUpdateAssignment?: (
     assignmentId: number,
     updates: {
@@ -30,10 +33,17 @@ export function ResourceCard({
   week,
   isSelected,
   allAssignments,
+  isShiftPressed,
+  selectedResources,
+  onResourceSelect,
   onUpdateAssignment,
 }: ResourceCardProps) {
   const [showEditModal, setShowEditModal] = useState(false);
   const uniqueId = `${project.id}-${assignment.id}-${week.toISOString()}`;
+  const isResourceSelected = selectedResources?.has(uniqueId);
+
+  const isDragStarted = useRef(false);
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const {
     attributes,
@@ -50,6 +60,67 @@ export function ResourceCard({
       week,
     },
   });
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isShiftPressed) {
+      e.preventDefault();
+      e.stopPropagation();
+      onResourceSelect(uniqueId, !isResourceSelected);
+    }
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isShiftPressed) {
+      setShowEditModal(true);
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    isDragStarted.current = false;
+    listeners?.onMouseDown?.(e);
+
+    clickTimeout.current = setTimeout(() => {
+      isDragStarted.current = true;
+    }, 200);
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    listeners?.onMouseUp?.(e);
+
+    if (clickTimeout.current) {
+      clearTimeout(clickTimeout.current);
+    }
+
+    if (!isDragStarted.current) {
+      handleClick(e);
+    }
+    isDragStarted.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.movementX !== 0 || e.movementY !== 0) {
+      isDragStarted.current = true;
+    }
+    listeners?.onMouseMove?.(e);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    listeners?.onKeyDown?.(e);
+  };
+
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    listeners?.onTouchStart?.(e);
+  };
+
+  const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
+    listeners?.onTouchEnd?.(e);
+  };
+
+  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    listeners?.onTouchMove?.(e);
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -112,39 +183,28 @@ export function ResourceCard({
 
   const utilizationInfo = getUtilizationInfo(weeklyUtilization);
 
-  const handleEditConfirm = (
-    assignmentId: number,
-    employeeId: number,
-    projectId: number,
-    startDate: string,
-    endDate: string,
-    utilization: number
-  ) => {
-    if (onUpdateAssignment) {
-      onUpdateAssignment(assignmentId, {
-        employeeId,
-        projectId,
-        startDate,
-        endDate,
-        utilisation: utilization,
-      });
-    }
-  };
-
   return (
     <>
       <div
         ref={setNodeRef}
         style={style}
         {...attributes}
-        {...listeners}
-        onDoubleClick={() => setShowEditModal(true)}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+        onKeyDown={handleKeyDown}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
+        onDoubleClick={handleDoubleClick}
         className={`
           w-full rounded border transition-transform transform-gpu
           ${utilizationInfo.color} ${utilizationInfo.borderColor}
           ${isSelected ? "ring-1 ring-blue-400" : ""}
+          ${isResourceSelected ? "ring-2 ring-blue-600" : ""}
           hover:shadow-sm active:shadow-md
           ${isDragging ? "shadow-lg rotate-2" : ""}
+          select-none
         `}
       >
         <div className="px-2 py-1 flex items-center justify-between gap-1">
@@ -170,9 +230,6 @@ export function ResourceCard({
             </span>
           </div>
         </div>
-
-        {/* Drag handle indicator */}
-        <div className="absolute inset-y-0 left-0 w-1 bg-gray-200 opacity-0 group-hover:opacity-100 rounded-l" />
       </div>
 
       <EditResourceModal
@@ -180,7 +237,23 @@ export function ResourceCard({
         project={project}
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
-        onConfirm={handleEditConfirm}
+        onConfirm={(
+          assignmentId,
+          employeeId,
+          projectId,
+          startDate,
+          endDate,
+          utilization
+        ) => {
+          onUpdateAssignment?.(assignmentId, {
+            employeeId,
+            projectId,
+            startDate,
+            endDate,
+            utilisation: utilization,
+          });
+          setShowEditModal(false);
+        }}
       />
     </>
   );
