@@ -699,7 +699,7 @@ export function GanttChart() {
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 p-4 flex gap-4 bg-white border-t">
+        <div className="sticky bottom-0 p-4 z-20 flex gap-4 bg-white border-t">
           <div className="flex gap-2">
             <button
               onClick={handleUndo}
