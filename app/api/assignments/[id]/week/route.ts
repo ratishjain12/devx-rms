@@ -4,10 +4,11 @@ import { endOfWeek, isWithinInterval } from "date-fns";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: number }> }
 ) {
   try {
-    const assignmentId = parseInt(params.id);
+    const data = await params;
+    const assignmentId = data.id;
     const body = await request.json();
     const { weekStart } = body;
 
