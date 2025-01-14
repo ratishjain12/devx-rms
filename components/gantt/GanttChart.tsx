@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
@@ -82,6 +83,11 @@ type TempAssignment =
   | TempEditedAssignment
   | TempWeekDeleteAssignment;
 
+export interface SelectedCell {
+  projectId: number;
+  week: Date;
+}
+
 const calculateTimelineWeeks = (): Date[] => {
   const today = new Date();
   const currentWeek = startOfWeek(today, { weekStartsOn: 0 }); // 1 = Monday
@@ -131,8 +137,23 @@ export function GanttChart() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [availabilityThreshold, setAvailabilityThreshold] = useState(80);
   const [isShiftPressed, setIsShiftPressed] = useState(false);
-  const [selectedResources, setSelectedResources] = useState(new Set<string>());
+  const [selectedResources, setSelectedResources] = useState(new Set<any>());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedCell, setSelectedCell] = useState<{
+    projectId: number;
+    week: string;
+  } | null>(null);
+  const [copiedResources, setCopiedResources] = useState<{
+    assignments: Array<{
+      assignmentId: number;
+      projectId: number;
+      employeeId: number;
+      utilisation: number;
+      startDate: string;
+      endDate: string;
+    }>;
+    sourceWeek: string;
+  } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const weeks = useMemo(calculateTimelineWeeks, []);
   const timelineStart = weeks[0];
@@ -142,10 +163,70 @@ export function GanttChart() {
   const keyboardSensor = useSensor(KeyboardSensor);
   const sensors = useSensors(pointerSensor, keyboardSensor);
 
+  const [pasteTargetWeek, setPasteTargetWeek] = useState<string | null>(null);
   useEffect(() => {
     fetchProjects();
     fetchAllEmployees();
   }, []);
+
+  const handleCopy = useCallback(() => {
+    if (selectedResources.size > 0) {
+      // Get the week of the first selected resource
+      const firstResource = selectedResources.values().next().value;
+      const [_, __, weekStr] = firstResource.split("-");
+
+      // Filter selected resources to only include those from the same week
+      const sameWeekResources = Array.from(selectedResources).filter(
+        (resourceId) => {
+          const [, , currentWeek] = resourceId.split("-");
+          return currentWeek === weekStr;
+        }
+      );
+
+      // If trying to copy from multiple weeks, show warning and prevent copy
+      if (sameWeekResources.length !== selectedResources.size) {
+        toast({
+          title: "Cannot copy from multiple weeks",
+          description: "Please select resources only from the same week slot",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const assignments = sameWeekResources
+        .map((resourceId) => {
+          const [projectId, assignmentId] = resourceId.split("-");
+          const project = projects.find((p) => p.id === parseInt(projectId));
+          const assignment = project?.assignments.find(
+            (a) => a.id === parseInt(assignmentId)
+          );
+
+          if (!assignment) return null;
+
+          return {
+            assignmentId: parseInt(assignmentId),
+            projectId: parseInt(projectId),
+            employeeId: assignment.employeeId,
+            utilisation: assignment.utilisation,
+            startDate: assignment.startDate || "",
+            endDate: assignment.endDate || "",
+          };
+        })
+        .filter((a): a is NonNullable<typeof a> => a !== null);
+
+      if (assignments.length > 0) {
+        setCopiedResources({
+          assignments,
+          sourceWeek: weekStr,
+        });
+
+        toast({
+          title: "Copied",
+          description: `${assignments.length} resources copied. Select a week and press Cmd/Ctrl + V to paste.`,
+        });
+      }
+    }
+  }, [selectedResources, projects]);
 
   const handleUndo = useCallback(() => {
     if (currentHistoryIndex > 0) {
@@ -320,6 +401,79 @@ export function GanttChart() {
     [currentHistoryIndex, projectsHistory]
   );
 
+  const handlePaste = useCallback(() => {
+    if (!copiedResources || !selectedCell) {
+      toast({
+        title: "Cannot paste",
+        description: "Select a cell first before pasting",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newTempAssignments = [...tempAssignments];
+    const newProjects = JSON.parse(JSON.stringify(projects));
+
+    // Get the target week
+    const targetWeek = new Date(selectedCell.week);
+    const targetWeekEnd = addDays(targetWeek, 6); // End of the week
+
+    for (const assignment of copiedResources.assignments) {
+      // Create new assignment for the selected week
+      const newAssignment: TempNewAssignment = {
+        type: "new",
+        projectId: selectedCell.projectId,
+        employeeId: assignment.employeeId,
+        startDate: targetWeek.toISOString(),
+        endDate: targetWeekEnd.toISOString(),
+        utilisation: assignment.utilisation,
+      };
+
+      newTempAssignments.push(newAssignment);
+
+      // Update UI immediately
+      const projectIndex = newProjects.findIndex(
+        (p: { id: number }) => p.id === selectedCell.projectId
+      );
+      if (projectIndex !== -1) {
+        const employee = allEmployees.find(
+          (e) => e.id === assignment.employeeId
+        );
+        if (employee) {
+          const tempUIAssignment = {
+            id: -Date.now() - Math.random(),
+            employeeId: assignment.employeeId,
+            projectId: selectedCell.projectId,
+            startDate: targetWeek.toISOString(),
+            endDate: targetWeekEnd.toISOString(),
+            utilisation: assignment.utilisation,
+            employee: employee,
+            project: newProjects[projectIndex],
+          };
+
+          newProjects[projectIndex].assignments.push(tempUIAssignment);
+        }
+      }
+    }
+
+    handleProjectsChange(newProjects, newTempAssignments);
+    setCopiedResources(null);
+    setSelectedCell(null);
+    setSelectedResources(new Set());
+
+    toast({
+      title: "Pasted",
+      description: `${copiedResources.assignments.length} resources pasted`,
+    });
+  }, [
+    copiedResources,
+    selectedCell,
+    projects,
+    tempAssignments,
+    allEmployees,
+    handleProjectsChange,
+  ]);
+
   const handleDeleteSelected = useCallback(() => {
     if (selectedResources.size === 0 || isDeleting) return;
 
@@ -437,6 +591,22 @@ export function GanttChart() {
           description: "The last action has been undone.",
         });
       } else if (
+        isCmdOrCtrl &&
+        event.key === "c" &&
+        selectedResources.size > 0
+      ) {
+        event.preventDefault();
+        handleCopy();
+      } else if (
+        isCmdOrCtrl &&
+        event.key === "v" &&
+        copiedResources &&
+        selectedWeek
+      ) {
+        event.preventDefault();
+        setPasteTargetWeek(selectedWeek.toISOString());
+        handlePaste();
+      } else if (
         (event.key === "Delete" || event.key === "Backspace") &&
         selectedResources.size > 0
       ) {
@@ -458,7 +628,16 @@ export function GanttChart() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [handleSave, handleUndo, selectedResources, handleDeleteSelected]);
+  }, [
+    handleSave,
+    handleUndo,
+    selectedResources,
+    handleDeleteSelected,
+    handleCopy,
+    handlePaste,
+    copiedResources,
+    selectedWeek,
+  ]);
 
   const handleResourceSelect = (resourceId: string, selected: boolean) => {
     setSelectedResources((prev) => {
@@ -892,6 +1071,11 @@ export function GanttChart() {
                           onAddAssignment={handleAddAssignment}
                           selectedWeek={selectedWeek}
                           weeks={weeks}
+                          selectedCell={selectedCell}
+                          onCellSelect={(projectId, week) => {
+                            setSelectedCell({ projectId, week });
+                          }}
+                          copiedResources={copiedResources !== null}
                           isShiftPressed={isShiftPressed}
                           onResourceSelect={handleResourceSelect}
                           selectedResources={selectedResources}

@@ -1,3 +1,4 @@
+// ProjectBar.tsx
 import React from "react";
 import { addDays, format, isSameWeek } from "date-fns";
 import { Assignment, Project } from "@/types/models";
@@ -15,7 +16,7 @@ interface ProjectBarProps {
   selectedWeek: Date | null;
   weeks: Date[];
   onSelectWeek: (week: Date | null) => void;
-  allProjects: Project[]; // Added to get all assignments across projects
+  allProjects: Project[];
   isShiftPressed: boolean;
   selectedResources: Set<string>;
   onResourceSelect: (resourceId: string, selected: boolean) => void;
@@ -29,9 +30,11 @@ interface ProjectBarProps {
       utilisation: number;
     }
   ) => void;
+  selectedCell: { projectId: number; week: string } | null;
+  onCellSelect: (projectId: number, week: string) => void;
+  copiedResources: boolean;
 }
 
-// Custom component for droppable week column
 function WeekColumn({
   project,
   week,
@@ -43,6 +46,9 @@ function WeekColumn({
   selectedResources,
   onResourceSelect,
   onUpdateAssignment,
+  selectedCell,
+  onCellSelect,
+  copiedResources,
 }: {
   project: Project;
   week: Date;
@@ -63,6 +69,9 @@ function WeekColumn({
       utilisation: number;
     }
   ) => void;
+  selectedCell: { projectId: number; week: string } | null;
+  onCellSelect: (projectId: number, week: string) => void;
+  copiedResources: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `project-${project.id}-week-${week.toISOString()}`,
@@ -72,18 +81,37 @@ function WeekColumn({
     },
   });
 
+  const isCellSelected =
+    selectedCell?.projectId === project.id &&
+    selectedCell?.week === week.toISOString();
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCellSelect(project.id, week.toISOString());
+    onSelectWeek(week);
+  };
+
   return (
     <div
       ref={setNodeRef}
+      onClick={handleClick}
       className={cn(
         "shrink-0 border-r border-gray-200 transition-all duration-100 relative",
         isSelected ? "w-[250px]" : "w-[190px]",
         isOver ? "bg-blue-50" : "bg-white",
-        assignments.length > 0 ? "p-1" : ""
+        isCellSelected && "bg-blue-50",
+        assignments.length > 0 ? "p-1" : "",
+        copiedResources && !isCellSelected && "hover:bg-green-50"
       )}
-      onClick={() => onSelectWeek(week)}
     >
-      {/* Visual feedback for drop target */}
+      {isCellSelected && (
+        <div className="absolute inset-0 border-2 border-blue-400 pointer-events-none" />
+      )}
+
+      {copiedResources && !isCellSelected && (
+        <div className="absolute inset-0 border-2 border-dashed border-green-500 opacity-0 hover:opacity-100 pointer-events-none" />
+      )}
+
       {isOver && (
         <div className="absolute inset-0 border-2 border-blue-400 rounded pointer-events-none" />
       )}
@@ -125,6 +153,9 @@ export function ProjectBar({
   selectedResources,
   onResourceSelect,
   onUpdateAssignment,
+  selectedCell,
+  copiedResources,
+  onCellSelect,
 }: ProjectBarProps) {
   const requirementStatus = calculateProjectRequirementStatus(project);
 
@@ -208,6 +239,9 @@ export function ProjectBar({
                 key={week.toISOString()}
                 project={project}
                 week={week}
+                copiedResources={copiedResources}
+                selectedCell={selectedCell}
+                onCellSelect={onCellSelect}
                 isSelected={isSelected}
                 assignments={assignmentsInWeek}
                 onSelectWeek={onSelectWeek}
