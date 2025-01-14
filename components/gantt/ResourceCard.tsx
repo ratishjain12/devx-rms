@@ -1,4 +1,4 @@
-import React, { useState, useRef, KeyboardEvent, TouchEvent } from "react";
+import React, { useState, useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Assignment, Project } from "@/types/models";
@@ -41,9 +41,7 @@ export function ResourceCard({
   const [showEditModal, setShowEditModal] = useState(false);
   const uniqueId = `${project.id}-${assignment.id}-${week.toISOString()}`;
   const isResourceSelected = selectedResources?.has(uniqueId);
-
-  const isDragStarted = useRef(false);
-  const clickTimeout = useRef<NodeJS.Timeout | null>(null);
+  const isDragInitiated = useRef(false);
 
   const {
     attributes,
@@ -61,65 +59,23 @@ export function ResourceCard({
     },
   });
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     if (isShiftPressed) {
       e.preventDefault();
       e.stopPropagation();
       onResourceSelect(uniqueId, !isResourceSelected);
+      return;
     }
+    isDragInitiated.current = true;
+    listeners?.onMouseDown?.(e);
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isShiftPressed) {
+    if (!isShiftPressed && !isDragging) {
+      e.preventDefault();
+      e.stopPropagation();
       setShowEditModal(true);
     }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    isDragStarted.current = false;
-    listeners?.onMouseDown?.(e);
-
-    clickTimeout.current = setTimeout(() => {
-      isDragStarted.current = true;
-    }, 200);
-  };
-
-  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
-    listeners?.onMouseUp?.(e);
-
-    if (clickTimeout.current) {
-      clearTimeout(clickTimeout.current);
-    }
-
-    if (!isDragStarted.current) {
-      handleClick(e);
-    }
-    isDragStarted.current = false;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.movementX !== 0 || e.movementY !== 0) {
-      isDragStarted.current = true;
-    }
-    listeners?.onMouseMove?.(e);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    listeners?.onKeyDown?.(e);
-  };
-
-  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
-    listeners?.onTouchStart?.(e);
-  };
-
-  const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
-    listeners?.onTouchEnd?.(e);
-  };
-
-  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
-    listeners?.onTouchMove?.(e);
   };
 
   const style = {
@@ -177,11 +133,16 @@ export function ResourceCard({
     return {
       color: "bg-green-500",
       borderColor: "border-green-600",
-      textColor: "text-black",
+      textColor: "text-white",
     };
   };
 
   const utilizationInfo = getUtilizationInfo(weeklyUtilization);
+
+  const customListeners = {
+    ...listeners,
+    onMouseDown: handleMouseDown,
+  };
 
   return (
     <>
@@ -189,13 +150,7 @@ export function ResourceCard({
         ref={setNodeRef}
         style={style}
         {...attributes}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseMove={handleMouseMove}
-        onKeyDown={handleKeyDown}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchMove={handleTouchMove}
+        {...customListeners}
         onDoubleClick={handleDoubleClick}
         className={`
           w-full rounded border transition-transform transform-gpu
@@ -214,7 +169,9 @@ export function ResourceCard({
                 isDragging ? "animate-pulse" : ""
               }`}
             />
-            <span className="font-medium text-gray-900 truncate text-sm">
+            <span
+              className={`font-medium truncate text-sm ${utilizationInfo.textColor}`}
+            >
               {assignment.employee.name.split(" ")[0]}
             </span>
           </div>
@@ -224,8 +181,10 @@ export function ResourceCard({
             >
               {assignment.utilisation}%
             </span>
-            <span className="text-xs text-gray-800">/</span>
-            <span className={`text-xs "text-gray-500" font-medium`}>
+            <span className={`text-xs ${utilizationInfo.textColor}`}>/</span>
+            <span
+              className={`text-xs ${utilizationInfo.textColor} font-medium`}
+            >
               {weeklyUtilization}%
             </span>
           </div>

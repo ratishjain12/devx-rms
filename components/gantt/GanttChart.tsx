@@ -33,7 +33,7 @@ import {
 } from "./AvailableEmployeesList";
 import { Project, Employee, Assignment } from "@/types/models";
 import { AddProjectModal } from "../modals/AddProjectModal";
-import { Undo2, RotateCcw } from "lucide-react";
+import { Undo2, RotateCcw, Save, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import EmployeeDetails from "@/app/employees/[id]/page";
@@ -104,6 +104,7 @@ export function GanttChart() {
     {
       projects: Project[];
       tempAssignments: TempAssignment[];
+      selectedResources?: Set<string>;
     }[]
   >([]);
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
@@ -317,7 +318,8 @@ export function GanttChart() {
     if (selectedResources.size === 0 || isDeleting) return;
 
     try {
-      const newProjects = [...projects];
+      // Deep copy projects to ensure proper mutation
+      const newProjects = JSON.parse(JSON.stringify(projects));
       const newTempAssignments = [...tempAssignments];
 
       selectedResources.forEach((resourceId) => {
@@ -326,7 +328,6 @@ export function GanttChart() {
           .slice(1);
         const weekStart = startOfWeek(new Date(weekStr), { weekStartsOn: 0 });
 
-        // Add to tempAssignments for API call during save
         newTempAssignments.push({
           type: "weekDelete",
           assignmentId: parseInt(assignmentId),
@@ -335,12 +336,12 @@ export function GanttChart() {
 
         const weekEnd = endOfWeek(weekStart);
         const projectIndex = newProjects.findIndex(
-          (p) => p.id === parseInt(projectId)
+          (p: { id: number }) => p.id === parseInt(projectId)
         );
 
         if (projectIndex !== -1) {
           const assignment = newProjects[projectIndex].assignments.find(
-            (a) => a.id === parseInt(assignmentId)
+            (a: { id: number }) => a.id === parseInt(assignmentId)
           );
 
           if (assignment) {
@@ -365,31 +366,33 @@ export function GanttChart() {
             }
           }
 
-          // Filter out any assignments that might have become invalid
           newProjects[projectIndex].assignments = newProjects[
             projectIndex
           ].assignments.filter(
-            (a) => new Date(a.startDate) <= new Date(a.endDate)
+            (a: {
+              startDate: string | number | Date;
+              endDate: string | number | Date;
+            }) => new Date(a.startDate) <= new Date(a.endDate)
           );
         }
       });
 
-      // Update state
-      setProjects(newProjects);
-      setTempAssignments(newTempAssignments);
-      setHasUnsavedChanges(true);
-      setSelectedResources(new Set());
-
-      // Add to history
+      // Create new history entry with deep copies
       const newHistoryEntry = {
-        projects: newProjects,
-        tempAssignments: newTempAssignments,
+        projects: JSON.parse(JSON.stringify(newProjects)),
+        tempAssignments: [...newTempAssignments],
       };
+
       setProjectsHistory((prev) => [
         ...prev.slice(0, currentHistoryIndex + 1),
         newHistoryEntry,
       ]);
       setCurrentHistoryIndex((prev) => prev + 1);
+
+      setProjects(newProjects);
+      setTempAssignments(newTempAssignments);
+      setHasUnsavedChanges(true);
+      setSelectedResources(new Set());
     } catch (error) {
       console.error("Error handling deletions:", error);
       toast({
@@ -468,11 +471,13 @@ export function GanttChart() {
     try {
       const response = await fetch("/api/projects");
       const data = await response.json();
-      setProjects(data.projects);
-      // Initialize history with the fetched state
+      // Create a deep copy of initial data
+      const initialProjects = JSON.parse(JSON.stringify(data.projects));
+      setProjects(initialProjects);
+      // Initialize history with a deep copy
       setProjectsHistory([
         {
-          projects: data.projects,
+          projects: JSON.parse(JSON.stringify(initialProjects)),
           tempAssignments: [],
         },
       ]);
@@ -527,14 +532,17 @@ export function GanttChart() {
 
   const handleReset = () => {
     if (projectsHistory[0]) {
-      setProjects(projectsHistory[0].projects);
-      setTempAssignments(projectsHistory[0].tempAssignments);
-      setProjectsHistory([projectsHistory[0]]);
+      // Create deep copies to ensure state isolation
+      const initialState = JSON.parse(JSON.stringify(projectsHistory[0]));
+      setProjects(initialState.projects);
+      setTempAssignments([]);
+      // Reset history to only contain the initial state
+      setProjectsHistory([initialState]);
       setCurrentHistoryIndex(0);
       setHasUnsavedChanges(false);
+      setSelectedResources(new Set());
     }
   };
-
   const handleWeekSelect = async (week: Date | null) => {
     setSelectedWeek(week);
     if (week) {
@@ -816,7 +824,7 @@ export function GanttChart() {
 
   // Update the grid structure in GanttChart.tsx
   return (
-    <div className="mx-auto p-4">
+    <div className="mx-auto p-4 pb-20">
       <div className="border rounded-lg bg-white shadow">
         <div className="overflow-x-auto">
           <div className="min-w-max">
@@ -894,7 +902,7 @@ export function GanttChart() {
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 p-4 z-20 flex gap-4 bg-white border-t">
+        <div className="fixed left-0 right-0 bottom-0 p-4 z-20 flex justify-end gap-4 bg-white border-t">
           <div className="flex gap-2">
             <button
               onClick={handleUndo}
@@ -926,18 +934,20 @@ export function GanttChart() {
           <button
             onClick={handleSave}
             disabled={!hasUnsavedChanges}
-            className={`px-4 py-2 rounded ${
+            className={`px-4 py-2 rounded flex items-center gap-2 ${
               hasUnsavedChanges
                 ? "bg-blue-500 text-white hover:bg-blue-600"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
-            Save Changes
+            <Save size={16} />
+            Save
           </button>
           <button
             onClick={() => setShowAddProjectModal(true)}
-            className="bg-blue-500 px-4 py-2 rounded  text-white hover:bg-blue-600"
+            className="bg-blue-500 px-4 py-2 rounded flex items-center gap-2 text-white hover:bg-blue-600"
           >
+            <Plus size={16} />
             Add Project
           </button>
         </div>
