@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
-import { endOfWeek, isWithinInterval } from "date-fns";
+import { endOfWeek, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
 export async function DELETE(
   request: Request,
@@ -9,9 +9,6 @@ export async function DELETE(
   try {
     const data = await params;
     const assignmentId = parseInt(data.id);
-
-    // Debug logging
-    console.log("Received params:", { data, assignmentId });
 
     let requestBody;
     try {
@@ -35,7 +32,6 @@ export async function DELETE(
       );
     }
 
-    // Get the current assignment
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
       include: {
@@ -52,30 +48,42 @@ export async function DELETE(
       );
     }
 
-    const weekStartDate = new Date(weekStart);
-    const weekEndDate = endOfWeek(weekStartDate);
-    const assignmentStartDate = new Date(assignment.startDate);
-    const assignmentEndDate = new Date(assignment.endDate);
+    const weekStartDate = startOfDay(new Date(weekStart));
+    const weekEndDate = endOfDay(endOfWeek(weekStartDate));
+    const assignmentStartDate = startOfDay(new Date(assignment.startDate));
+    const assignmentEndDate = startOfDay(new Date(assignment.endDate));
 
-    console.log("Date calculations:", {
-      weekStartDate,
-      weekEndDate,
-      assignmentStartDate,
-      assignmentEndDate,
-    });
-
-    // If the week is at the start of the assignment
+    // If assignment only spans this week, delete it entirely
     if (
+      isWithinInterval(assignmentStartDate, {
+        start: weekStartDate,
+        end: weekEndDate,
+      }) &&
+      isWithinInterval(assignmentEndDate, {
+        start: weekStartDate,
+        end: weekEndDate,
+      })
+    ) {
+      // Delete the entire assignment
+      await prisma.assignment.delete({
+        where: { id: assignmentId },
+      });
+      return NextResponse.json({ message: "Assignment deleted successfully" });
+    }
+    // If the week is at the start of the assignment
+    else if (
       isWithinInterval(assignmentStartDate, {
         start: weekStartDate,
         end: weekEndDate,
       })
     ) {
-      console.log("Updating start date of assignment");
+      const newStartDate = new Date(weekEndDate);
+      newStartDate.setDate(weekEndDate.getDate() + 1);
+
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          startDate: new Date(weekEndDate.getTime() + 86400000).toISOString(),
+          startDate: startOfDay(newStartDate).toISOString(),
         },
         include: {
           employee: true,
@@ -91,11 +99,13 @@ export async function DELETE(
         end: weekEndDate,
       })
     ) {
-      console.log("Updating end date of assignment");
+      const newEndDate = new Date(weekStartDate);
+      newEndDate.setDate(weekStartDate.getDate() - 1);
+
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(),
+          endDate: endOfDay(newEndDate).toISOString(),
         },
         include: {
           employee: true,
@@ -106,23 +116,30 @@ export async function DELETE(
     }
     // If the week is in the middle of the assignment
     else {
-      console.log("Splitting assignment into two parts");
-      const [updatedAssignment, newAssignment] = await prisma.$transaction([
+      const splitEndDate = new Date(weekStartDate);
+      splitEndDate.setDate(weekStartDate.getDate() - 1);
+
+      const splitStartDate = new Date(weekEndDate);
+      splitStartDate.setDate(weekEndDate.getDate() + 1);
+
+      const [firstPart, secondPart] = await prisma.$transaction([
+        // Update the first part
         prisma.assignment.update({
           where: { id: assignmentId },
           data: {
-            endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(),
+            endDate: endOfDay(splitEndDate).toISOString(),
           },
           include: {
             employee: true,
             project: true,
           },
         }),
+        // Create the second part
         prisma.assignment.create({
           data: {
             employeeId: assignment.employeeId,
             projectId: assignment.projectId,
-            startDate: new Date(weekEndDate.getTime() + 86400000).toISOString(),
+            startDate: startOfDay(splitStartDate).toISOString(),
             endDate: assignment.endDate,
             utilisation: assignment.utilisation,
           },
@@ -133,10 +150,13 @@ export async function DELETE(
         }),
       ]);
 
-      return NextResponse.json({ updatedAssignment, newAssignment });
+      return NextResponse.json({
+        message: "Week deleted and assignment split",
+        firstPart,
+        secondPart,
+      });
     }
   } catch (error) {
-    // Enhanced error logging
     console.error("Error deleting assignment week:", {
       error,
       stack: error instanceof Error ? error.stack : undefined,
