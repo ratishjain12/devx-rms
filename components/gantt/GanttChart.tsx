@@ -699,7 +699,7 @@ export function GanttChart() {
               (a) => a.id === parseInt(assignmentId)
             );
             if (assignment) {
-              const targetWeekStart = addDays(new Date(targetWeek), 1);
+              const targetWeekStart = new Date(targetWeek);
               const targetWeekEnd = new Date(targetWeekStart);
               targetWeekEnd.setDate(targetWeekStart.getDate() + 6);
               setMovedAssignment({
