@@ -75,7 +75,7 @@ export async function DELETE(
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          startDate: new Date(weekEndDate.getTime() + 86400000).toISOString(),
+          startDate: new Date(weekEndDate.getTime() + 86400000).toISOString(), // Start after the week ends
         },
         include: {
           employee: true,
@@ -95,7 +95,7 @@ export async function DELETE(
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(),
+          endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(), // End before the week starts
         },
         include: {
           employee: true,
@@ -109,7 +109,7 @@ export async function DELETE(
       console.log("Splitting assignment into two parts");
 
       // Calculate the new start date for the second part of the assignment
-      let newStartDate = new Date(weekEndDate.getTime() + 86400000);
+      let newStartDate = new Date(weekEndDate.getTime() + 86400000); // Start after the week ends
       let conflictExists = true;
 
       // Loop to find a non-conflicting start date
@@ -130,12 +130,12 @@ export async function DELETE(
         }
       }
 
-      // Proceed with creating the new assignment
+      // Proceed with creating the new assignments
       const [updatedAssignment, newAssignment] = await prisma.$transaction([
         prisma.assignment.update({
           where: { id: assignmentId },
           data: {
-            endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(),
+            endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(), // End before the week starts
           },
           include: {
             employee: true,
@@ -146,9 +146,9 @@ export async function DELETE(
           data: {
             employeeId: assignment.employeeId,
             projectId: assignment.projectId,
-            startDate: newStartDate.toISOString(),
+            startDate: newStartDate.toISOString(), // Start after the week ends
             endDate: assignment.endDate,
-            utilisation: assignment.utilisation,
+            utilisation: assignment.utilisation, // Keep the same utilisation
           },
           include: {
             employee: true,
@@ -156,6 +156,47 @@ export async function DELETE(
           },
         }),
       ]);
+
+      // Debug logs
+      console.log("Updated Assignment:", {
+        id: updatedAssignment.id,
+        startDate: updatedAssignment.startDate,
+        endDate: updatedAssignment.endDate,
+        utilisation: updatedAssignment.utilisation,
+      });
+
+      console.log("New Assignment:", {
+        id: newAssignment.id,
+        startDate: newAssignment.startDate,
+        endDate: newAssignment.endDate,
+        utilisation: newAssignment.utilisation,
+      });
+
+      // Check for overlapping assignments
+      const overlappingAssignments = await prisma.assignment.findMany({
+        where: {
+          employeeId: assignment.employeeId,
+          projectId: assignment.projectId,
+          OR: [
+            {
+              startDate: { lte: newStartDate },
+              endDate: { gte: newStartDate },
+            },
+            {
+              startDate: { lte: assignment.endDate },
+              endDate: { gte: assignment.endDate },
+            },
+          ],
+        },
+      });
+
+      if (overlappingAssignments.length > 0) {
+        console.error("Overlapping assignments found:", overlappingAssignments);
+        return NextResponse.json(
+          { error: "Overlapping assignments detected" },
+          { status: 400 }
+        );
+      }
 
       return NextResponse.json({ updatedAssignment, newAssignment });
     }
