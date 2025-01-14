@@ -181,7 +181,7 @@ export function ResourceCard({
             >
               {assignment.utilisation}%
             </span>
-            <span className={`text-xs ${utilizationInfo.textColor}`}>/</span>
+            <span className={`text-xs ${utilizationInfo.textColor}`}>|</span>
             <span
               className={`text-xs ${utilizationInfo.textColor} font-medium`}
             >
