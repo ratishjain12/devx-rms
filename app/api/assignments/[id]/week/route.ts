@@ -109,25 +109,26 @@ export async function DELETE(
       console.log("Splitting assignment into two parts");
 
       // Calculate the new start date for the second part of the assignment
-      let newStartDate = new Date(weekEndDate.getTime() + 86400000); // Start after the week ends
-      let conflictExists = true;
+      const newStartDate = new Date(weekEndDate.getTime() + 86400000); // Start after the week ends
 
-      // Loop to find a non-conflicting start date
-      while (conflictExists) {
-        const existingAssignment = await prisma.assignment.findFirst({
-          where: {
-            employeeId: assignment.employeeId,
-            projectId: assignment.projectId,
-            startDate: newStartDate.toISOString(),
-          },
-        });
+      // Check for conflicts in a single query
+      const conflictingAssignment = await prisma.assignment.findFirst({
+        where: {
+          employeeId: assignment.employeeId,
+          projectId: assignment.projectId,
+          startDate: newStartDate.toISOString(),
+        },
+      });
 
-        if (!existingAssignment) {
-          conflictExists = false; // No conflict, proceed
-        } else {
-          // Add 1 millisecond to the start date and check again
-          newStartDate = new Date(newStartDate.getTime() + 1);
-        }
+      if (conflictingAssignment) {
+        console.error(
+          "Conflict detected with assignment:",
+          conflictingAssignment
+        );
+        return NextResponse.json(
+          { error: "Conflict detected with existing assignment" },
+          { status: 400 }
+        );
       }
 
       // Proceed with creating the new assignments
@@ -171,32 +172,6 @@ export async function DELETE(
         endDate: newAssignment.endDate,
         utilisation: newAssignment.utilisation,
       });
-
-      // Check for overlapping assignments
-      const overlappingAssignments = await prisma.assignment.findMany({
-        where: {
-          employeeId: assignment.employeeId,
-          projectId: assignment.projectId,
-          OR: [
-            {
-              startDate: { lte: newStartDate },
-              endDate: { gte: newStartDate },
-            },
-            {
-              startDate: { lte: assignment.endDate },
-              endDate: { gte: assignment.endDate },
-            },
-          ],
-        },
-      });
-
-      if (overlappingAssignments.length > 0) {
-        console.error("Overlapping assignments found:", overlappingAssignments);
-        return NextResponse.json(
-          { error: "Overlapping assignments detected" },
-          { status: 400 }
-        );
-      }
 
       return NextResponse.json({ updatedAssignment, newAssignment });
     }
