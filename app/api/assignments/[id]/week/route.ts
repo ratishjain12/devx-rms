@@ -107,6 +107,30 @@ export async function DELETE(
     // If the week is in the middle of the assignment
     else {
       console.log("Splitting assignment into two parts");
+
+      // Calculate the new start date for the second part of the assignment
+      let newStartDate = new Date(weekEndDate.getTime() + 86400000);
+      let conflictExists = true;
+
+      // Loop to find a non-conflicting start date
+      while (conflictExists) {
+        const existingAssignment = await prisma.assignment.findFirst({
+          where: {
+            employeeId: assignment.employeeId,
+            projectId: assignment.projectId,
+            startDate: newStartDate.toISOString(),
+          },
+        });
+
+        if (!existingAssignment) {
+          conflictExists = false; // No conflict, proceed
+        } else {
+          // Add 1 millisecond to the start date and check again
+          newStartDate = new Date(newStartDate.getTime() + 1);
+        }
+      }
+
+      // Proceed with creating the new assignment
       const [updatedAssignment, newAssignment] = await prisma.$transaction([
         prisma.assignment.update({
           where: { id: assignmentId },
@@ -122,7 +146,7 @@ export async function DELETE(
           data: {
             employeeId: assignment.employeeId,
             projectId: assignment.projectId,
-            startDate: new Date(weekEndDate.getTime() + 86400000).toISOString(),
+            startDate: newStartDate.toISOString(),
             endDate: assignment.endDate,
             utilisation: assignment.utilisation,
           },
