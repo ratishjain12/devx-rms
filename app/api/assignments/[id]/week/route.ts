@@ -75,7 +75,7 @@ export async function DELETE(
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          startDate: new Date(weekEndDate.getTime() + 86400000).toISOString(), // Start after the week ends
+          startDate: new Date(weekEndDate.getTime() + 86400000).toISOString(),
         },
         include: {
           employee: true,
@@ -95,7 +95,7 @@ export async function DELETE(
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(), // End before the week starts
+          endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(),
         },
         include: {
           employee: true,
@@ -107,36 +107,11 @@ export async function DELETE(
     // If the week is in the middle of the assignment
     else {
       console.log("Splitting assignment into two parts");
-
-      // Calculate the new start date for the second part of the assignment
-      const newStartDate = new Date(weekEndDate.getTime() + 86400000); // Start after the week ends
-
-      // Check for conflicts in a single query
-      const conflictingAssignment = await prisma.assignment.findFirst({
-        where: {
-          employeeId: assignment.employeeId,
-          projectId: assignment.projectId,
-          startDate: newStartDate.toISOString(),
-        },
-      });
-
-      if (conflictingAssignment) {
-        console.error(
-          "Conflict detected with assignment:",
-          conflictingAssignment
-        );
-        return NextResponse.json(
-          { error: "Conflict detected with existing assignment" },
-          { status: 400 }
-        );
-      }
-
-      // Proceed with creating the new assignments
       const [updatedAssignment, newAssignment] = await prisma.$transaction([
         prisma.assignment.update({
           where: { id: assignmentId },
           data: {
-            endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(), // End before the week starts
+            endDate: new Date(weekStartDate.getTime() - 86400000).toISOString(),
           },
           include: {
             employee: true,
@@ -147,9 +122,9 @@ export async function DELETE(
           data: {
             employeeId: assignment.employeeId,
             projectId: assignment.projectId,
-            startDate: newStartDate.toISOString(), // Start after the week ends
+            startDate: new Date(weekEndDate.getTime() + 86400000).toISOString(),
             endDate: assignment.endDate,
-            utilisation: assignment.utilisation, // Keep the same utilisation
+            utilisation: assignment.utilisation,
           },
           include: {
             employee: true,
@@ -157,21 +132,6 @@ export async function DELETE(
           },
         }),
       ]);
-
-      // Debug logs
-      console.log("Updated Assignment:", {
-        id: updatedAssignment.id,
-        startDate: updatedAssignment.startDate,
-        endDate: updatedAssignment.endDate,
-        utilisation: updatedAssignment.utilisation,
-      });
-
-      console.log("New Assignment:", {
-        id: newAssignment.id,
-        startDate: newAssignment.startDate,
-        endDate: newAssignment.endDate,
-        utilisation: newAssignment.utilisation,
-      });
 
       return NextResponse.json({ updatedAssignment, newAssignment });
     }
