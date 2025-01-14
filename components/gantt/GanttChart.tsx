@@ -83,7 +83,7 @@ type TempAssignment =
 
 const calculateTimelineWeeks = (): Date[] => {
   const today = new Date();
-  const currentWeek = startOfWeek(today);
+  const currentWeek = startOfWeek(today, { weekStartsOn: 0 }); // 1 = Monday
   const start = subWeeks(currentWeek, 3);
   const end = addWeeks(currentWeek, 10);
 
@@ -657,19 +657,16 @@ export function GanttChart() {
       console.log("Target Project ID:", targetProjectId);
       console.log("Target Week:", targetWeek);
 
-      // Helper function to calculate the start of the week (Sunday)
+      // Helper function to calculate the start of the week (Monday)
       const getStartOfWeek = (dateString: string) => {
-        // Ensure the date string is valid
+        // Ensure the input date string is valid
         if (!dateString || isNaN(new Date(dateString).getTime())) {
           throw new Error(`Invalid date string: ${dateString}`);
         }
 
+        // Use startOfWeek from date-fns with Monday as the starting day
         const date = new Date(dateString);
-        const dayOfWeek = date.getDay(); // 0 (Sunday) to 6 (Saturday)
-        const startOfWeek = new Date(date);
-        startOfWeek.setDate(date.getDate() - dayOfWeek); // Move to Sunday
-        startOfWeek.setHours(0, 0, 0, 0); // Normalize time to midnight
-        return startOfWeek.toISOString(); // Return as ISO string for comparison
+        return startOfWeek(date, { weekStartsOn: 1 }); // 1 = Monday
       };
 
       try {
@@ -678,12 +675,19 @@ export function GanttChart() {
         const targetStartOfWeek = getStartOfWeek(targetWeek);
 
         // Log the start of the week for debugging
-        console.log("Active Start of Week:", activeStartOfWeek);
-        console.log("Target Start of Week:", targetStartOfWeek);
+        console.log(
+          "Active Start of Week:",
+          activeStartOfWeek.toLocaleDateString()
+        );
+        console.log(
+          "Target Start of Week:",
+          targetStartOfWeek.toLocaleDateString()
+        );
 
         // Check if the resource is being dragged within the same project and same week slot
         const isSameProject = activeProjectId === targetProjectId;
-        const isSameWeekSlot = activeStartOfWeek === targetStartOfWeek;
+        const isSameWeekSlot =
+          activeStartOfWeek.toISOString() === targetStartOfWeek.toISOString();
 
         if (!isSameProject || !isSameWeekSlot) {
           // Show the utilization modal if either the project or week slot is different
@@ -699,9 +703,10 @@ export function GanttChart() {
               (a) => a.id === parseInt(assignmentId)
             );
             if (assignment) {
-              const targetWeekStart = new Date(targetWeek);
+              const targetWeekStart = targetStartOfWeek;
               const targetWeekEnd = new Date(targetWeekStart);
-              targetWeekEnd.setDate(targetWeekStart.getDate() + 6);
+              targetWeekEnd.setDate(targetWeekStart.getDate() + 6); // Add 6 days to get Sunday
+
               setMovedAssignment({
                 assignment,
                 fromProject,
@@ -723,6 +728,7 @@ export function GanttChart() {
       }
     }
   };
+
   const handleThresholdChange = async (newThreshold: number) => {
     setAvailabilityThreshold(newThreshold);
     if (selectedWeek) {

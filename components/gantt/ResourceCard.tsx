@@ -3,7 +3,6 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Assignment, Project } from "@/types/models";
 import { UserCircle2 } from "lucide-react";
-import { isSameWeek } from "date-fns";
 import { EditResourceModal } from "../modals/EditResourceModal";
 
 interface ResourceCardProps {
@@ -89,18 +88,45 @@ export function ResourceCard({
   };
 
   const calculateWeeklyUtilization = () => {
+    // Normalize the start of the week (week is already passed as the start of the week)
+    const weekStart = new Date(week);
+    weekStart.setHours(0, 0, 0, 0); // Set time to midnight to ignore time differences
+
+    // Calculate the end of the week (6 days later) and normalize to midnight
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999); // End of day on the last day of the week
+
+    console.log(
+      `Calculating for Week: ${weekStart.toISOString()} to ${weekEnd.toISOString()}`
+    );
+
     return allAssignments
       .filter((a) => a.employeeId === assignment.employeeId)
       .reduce((total, currentAssignment) => {
         const assignmentStart = new Date(currentAssignment.startDate);
         const assignmentEnd = new Date(currentAssignment.endDate);
 
-        if (
-          isSameWeek(week, assignmentStart) ||
-          isSameWeek(week, assignmentEnd) ||
-          (assignmentStart <= week && assignmentEnd >= week)
-        ) {
+        // Normalize both assignment start and end dates to midnight
+        assignmentStart.setHours(0, 0, 0, 0);
+        assignmentEnd.setHours(23, 59, 59, 999); // End of the day
+
+        console.log(
+          `Checking assignment: ${assignmentStart.toISOString()} to ${assignmentEnd.toISOString()}, Utilization: ${
+            currentAssignment.utilisation
+          }`
+        );
+
+        // Check if the assignment overlaps with the week range (ignoring time)
+        const isOverlapping =
+          assignmentStart <= weekEnd && assignmentEnd >= weekStart;
+        if (isOverlapping) {
+          console.log(
+            `Assignment overlaps with the week. Adding utilization: ${currentAssignment.utilisation}`
+          );
           return total + currentAssignment.utilisation;
+        } else {
+          console.log(`Assignment does NOT overlap with the week.`);
         }
         return total;
       }, 0);
