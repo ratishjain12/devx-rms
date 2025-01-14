@@ -22,6 +22,7 @@ import {
   addDays,
   endOfWeek,
   isWithinInterval,
+  set,
 } from "date-fns";
 import { ProjectBar } from "./ProjectBar";
 import { TimelineHeader } from "./TimelineHeader";
@@ -36,7 +37,7 @@ import { AddProjectModal } from "../modals/AddProjectModal";
 import { Undo2, RotateCcw, Save, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-import EmployeeDetails from "@/app/employees/[id]/page";
+import { Loader2 } from "lucide-react";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -132,7 +133,7 @@ export function GanttChart() {
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [selectedResources, setSelectedResources] = useState(new Set<string>());
   const [isDeleting, setIsDeleting] = useState(false);
-
+  const [isSaving, setIsSaving] = useState(false);
   const weeks = useMemo(calculateTimelineWeeks, []);
   const timelineStart = weeks[0];
   const timelineEnd = weeks[weeks.length - 1];
@@ -158,6 +159,9 @@ export function GanttChart() {
   }, [currentHistoryIndex, projectsHistory]);
 
   const handleSave = useCallback(async () => {
+    if (isSaving) return;
+
+    setIsSaving(true);
     try {
       for (const temp of tempAssignments) {
         if (temp.type === "weekDelete") {
@@ -289,8 +293,10 @@ export function GanttChart() {
       setHasUnsavedChanges(false);
     } catch (error) {
       console.error("Error saving changes:", error);
+    } finally {
+      setIsSaving(false);
     }
-  }, [tempAssignments, projects]);
+  }, [tempAssignments, projects, isSaving]);
 
   const handleProjectsChange = useCallback(
     (newProjects: Project[], newTempAssignments: TempAssignment[]) => {
@@ -934,15 +940,19 @@ export function GanttChart() {
           </div>
           <button
             onClick={handleSave}
-            disabled={!hasUnsavedChanges}
+            disabled={!hasUnsavedChanges || isSaving}
             className={`px-4 py-2 rounded flex items-center gap-2 ${
               hasUnsavedChanges
                 ? "bg-blue-500 text-white hover:bg-blue-600"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
-            <Save size={16} />
-            Save
+            {isSaving ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Save size={16} />
+            )}
+            {isSaving ? "Saving..." : "Save"}
           </button>
           <button
             onClick={() => setShowAddProjectModal(true)}
