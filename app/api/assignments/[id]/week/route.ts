@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
-import { endOfWeek, isWithinInterval } from "date-fns";
+import { endOfWeek, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
 export async function DELETE(
   request: Request,
@@ -35,22 +35,24 @@ export async function DELETE(
       );
     }
 
-    const weekStartDate = new Date(weekStart);
-    const weekEndDate = endOfWeek(weekStartDate);
-    const assignmentStartDate = new Date(assignment.startDate);
-    const assignmentEndDate = new Date(assignment.endDate);
+    // Set up dates with proper start/end of day
+    const weekStartDate = startOfDay(new Date(weekStart));
+    const weekEndDate = endOfDay(endOfWeek(weekStartDate));
+    const assignmentStartDate = startOfDay(new Date(assignment.startDate));
+    const assignmentEndDate = endOfDay(new Date(assignment.endDate));
 
     // If the week is in the middle of the assignment
     if (
       assignmentStartDate < weekStartDate &&
       assignmentEndDate > weekEndDate
     ) {
-      // Create two new assignments
+      // Create two new assignments with clean midnight boundaries
       const [firstPart, secondPart] = await prisma.$transaction([
         prisma.assignment.update({
           where: { id: assignmentId },
           data: {
-            endDate: new Date(weekStartDate.getTime() - 86400000),
+            // End at 23:59:59.999 of the day before week starts
+            endDate: new Date(weekStartDate.getTime() - 1),
           },
           include: {
             employee: true,
@@ -61,7 +63,8 @@ export async function DELETE(
           data: {
             employeeId: assignment.employeeId,
             projectId: assignment.projectId,
-            startDate: new Date(weekEndDate.getTime() + 86400000),
+            // Start at 00:00:00.000 of the day after week ends
+            startDate: new Date(weekEndDate.getTime() + 1),
             endDate: assignment.endDate,
             utilisation: assignment.utilisation,
           },
@@ -87,7 +90,8 @@ export async function DELETE(
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          startDate: new Date(weekEndDate.getTime() + 86400000),
+          // Start at 00:00:00.000 of the day after week ends
+          startDate: new Date(weekEndDate.getTime() + 1),
         },
         include: {
           employee: true,
@@ -106,7 +110,8 @@ export async function DELETE(
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          endDate: new Date(weekStartDate.getTime() - 86400000),
+          // End at 23:59:59.999 of the day before week starts
+          endDate: new Date(weekStartDate.getTime() - 1),
         },
         include: {
           employee: true,
