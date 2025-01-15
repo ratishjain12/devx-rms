@@ -246,7 +246,6 @@ export function GanttChart() {
     try {
       for (const temp of tempAssignments) {
         if (temp.type === "weekDelete") {
-          // Handle week deletions
           const response = await fetch(
             `/api/assignments/${temp.assignmentId}/week`,
             {
@@ -267,33 +266,57 @@ export function GanttChart() {
           }
 
           const result = await response.json();
-          // Process the result
           const projectIndex = projects.findIndex((p) =>
             p.assignments.some((a) => a.id === temp.assignmentId)
           );
 
           if (projectIndex !== -1) {
             const updatedProjects = [...projects];
-            if (result.newAssignment) {
-              // Handle split assignment case
-              updatedProjects[projectIndex].assignments = updatedProjects[
-                projectIndex
-              ].assignments.map((a) =>
-                a.id === temp.assignmentId ? result.updatedAssignment : a
-              );
-              updatedProjects[projectIndex].assignments.push(
-                result.newAssignment
-              );
-            } else {
-              // Handle simple update case
-              updatedProjects[projectIndex].assignments = updatedProjects[
-                projectIndex
-              ].assignments
-                .map((a) =>
-                  a.id === temp.assignmentId ? result.updatedAssignment : a
-                )
-                .filter((a) => new Date(a.startDate) <= new Date(a.endDate));
+            const projectAssignments =
+              updatedProjects[projectIndex].assignments;
+
+            // Remove the original assignment
+            updatedProjects[projectIndex].assignments =
+              projectAssignments.filter((a) => a.id !== temp.assignmentId);
+
+            // Add the updated assignment if it's valid
+            if (
+              result.updatedAssignment?.startDate &&
+              result.updatedAssignment?.endDate
+            ) {
+              const startDate = new Date(result.updatedAssignment.startDate);
+              const endDate = new Date(result.updatedAssignment.endDate);
+
+              if (
+                !isNaN(startDate.getTime()) &&
+                !isNaN(endDate.getTime()) &&
+                startDate <= endDate
+              ) {
+                updatedProjects[projectIndex].assignments.push(
+                  result.updatedAssignment
+                );
+              }
             }
+
+            // Add the new assignment if it exists and is valid (for split cases)
+            if (
+              result.newAssignment?.startDate &&
+              result.newAssignment?.endDate
+            ) {
+              const startDate = new Date(result.newAssignment.startDate);
+              const endDate = new Date(result.newAssignment.endDate);
+
+              if (
+                !isNaN(startDate.getTime()) &&
+                !isNaN(endDate.getTime()) &&
+                startDate <= endDate
+              ) {
+                updatedProjects[projectIndex].assignments.push(
+                  result.newAssignment
+                );
+              }
+            }
+
             setProjects(updatedProjects);
           }
         } else if (temp.type === "edited") {
@@ -474,6 +497,7 @@ export function GanttChart() {
     handleProjectsChange,
   ]);
 
+  // GanttChart.tsx - Frontend handling of week deletion
   const handleDeleteSelected = useCallback(() => {
     if (selectedResources.size === 0 || isDeleting) return;
 
@@ -486,7 +510,8 @@ export function GanttChart() {
         const [projectId, assignmentId, weekStr] = resourceId
           .match(/^(\d+)-(\d+)-(.+)$/)!
           .slice(1);
-        const weekStart = startOfWeek(new Date(weekStr), { weekStartsOn: 0 });
+        const weekStart = startOfWeek(new Date(weekStr));
+        const weekEnd = endOfWeek(weekStart);
 
         newTempAssignments.push({
           type: "weekDelete",
@@ -494,19 +519,43 @@ export function GanttChart() {
           weekStart: weekStart.toISOString(),
         });
 
-        const weekEnd = endOfWeek(weekStart);
         const projectIndex = newProjects.findIndex(
-          (p: { id: number }) => p.id === parseInt(projectId)
+          (p: Project) => p.id === parseInt(projectId)
         );
 
         if (projectIndex !== -1) {
           const assignment = newProjects[projectIndex].assignments.find(
-            (a: { id: number }) => a.id === parseInt(assignmentId)
+            (a: Assignment) => a.id === parseInt(assignmentId)
           );
 
           if (assignment) {
+            const assignmentStartDate = new Date(assignment.startDate);
+            const assignmentEndDate = new Date(assignment.endDate);
+
+            // Handle middle week deletion
             if (
-              isWithinInterval(new Date(assignment.startDate), {
+              assignmentStartDate < weekStart &&
+              assignmentEndDate > weekEnd
+            ) {
+              // Split the assignment into two parts
+              const firstPart = {
+                ...assignment,
+                endDate: new Date(weekStart.getTime() - 86400000).toISOString(),
+              };
+              const secondPart = {
+                ...assignment,
+                id: -Date.now(), // Temporary negative ID for UI
+                startDate: new Date(weekEnd.getTime() + 86400000).toISOString(),
+              };
+
+              // Replace the original assignment with both parts
+              newProjects[projectIndex].assignments = newProjects[
+                projectIndex
+              ].assignments
+                .filter((a: Assignment) => a.id !== parseInt(assignmentId))
+                .concat([firstPart, secondPart]);
+            } else if (
+              isWithinInterval(assignmentStartDate, {
                 start: weekStart,
                 end: weekEnd,
               })
@@ -515,7 +564,7 @@ export function GanttChart() {
                 weekEnd.getTime() + 86400000
               ).toISOString();
             } else if (
-              isWithinInterval(new Date(assignment.endDate), {
+              isWithinInterval(assignmentEndDate, {
                 start: weekStart,
                 end: weekEnd,
               })
@@ -524,23 +573,32 @@ export function GanttChart() {
                 weekStart.getTime() - 86400000
               ).toISOString();
             }
-          }
 
-          newProjects[projectIndex].assignments = newProjects[
-            projectIndex
-          ].assignments.filter(
-            (a: {
-              startDate: string | number | Date;
-              endDate: string | number | Date;
-            }) => new Date(a.startDate) <= new Date(a.endDate)
-          );
+            // Filter out invalid assignments
+            newProjects[projectIndex].assignments = newProjects[
+              projectIndex
+            ].assignments.filter((a: Assignment) => {
+              try {
+                const startDate = new Date(a.startDate);
+                const endDate = new Date(a.endDate);
+                return (
+                  !isNaN(startDate.getTime()) &&
+                  !isNaN(endDate.getTime()) &&
+                  startDate <= endDate
+                );
+              } catch {
+                return false;
+              }
+            });
+          }
         }
       });
 
-      // Create new history entry with deep copies
+      // Create new history entry
       const newHistoryEntry = {
         projects: JSON.parse(JSON.stringify(newProjects)),
         tempAssignments: [...newTempAssignments],
+        selectedResources: new Set(selectedResources),
       };
 
       setProjectsHistory((prev) => [
