@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
-import { endOfWeek, isWithinInterval } from "date-fns";
+import { startOfWeek, endOfWeek, addDays, subDays } from "date-fns";
 
 export async function DELETE(
   request: Request,
@@ -43,21 +43,16 @@ export async function DELETE(
       );
     }
 
-    const weekStartDate = new Date(weekStart);
+    // Handle dates consistently by keeping them as ISO strings
+    const weekStartDate = startOfWeek(new Date(weekStart));
     const weekEndDate = endOfWeek(weekStartDate);
     const assignmentStartDate = new Date(assignment.startDate);
     const assignmentEndDate = new Date(assignment.endDate);
 
     // If assignment only spans this week, delete it
     if (
-      isWithinInterval(assignmentStartDate, {
-        start: weekStartDate,
-        end: weekEndDate,
-      }) &&
-      isWithinInterval(assignmentEndDate, {
-        start: weekStartDate,
-        end: weekEndDate,
-      })
+      assignmentStartDate >= weekStartDate &&
+      assignmentEndDate <= weekEndDate
     ) {
       const deletedAssignment = await prisma.assignment.delete({
         where: { id: assignmentId },
@@ -67,19 +62,16 @@ export async function DELETE(
         deletedAssignment,
       });
     }
+
     // If the week is at the start of the assignment
     else if (
-      isWithinInterval(assignmentStartDate, {
-        start: weekStartDate,
-        end: weekEndDate,
-      })
+      assignmentStartDate >= weekStartDate &&
+      assignmentStartDate <= weekEndDate
     ) {
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          startDate: new Date(
-            weekEndDate.getTime() + 24 * 60 * 60 * 1000
-          ).toISOString(),
+          startDate: addDays(weekEndDate, 1).toISOString(),
         },
         include: {
           employee: true,
@@ -88,19 +80,16 @@ export async function DELETE(
       });
       return NextResponse.json({ updatedAssignment });
     }
+
     // If the week is at the end of the assignment
     else if (
-      isWithinInterval(assignmentEndDate, {
-        start: weekStartDate,
-        end: weekEndDate,
-      })
+      assignmentEndDate >= weekStartDate &&
+      assignmentEndDate <= weekEndDate
     ) {
       const updatedAssignment = await prisma.assignment.update({
         where: { id: assignmentId },
         data: {
-          endDate: new Date(
-            weekStartDate.getTime() - 24 * 60 * 60 * 1000
-          ).toISOString(),
+          endDate: subDays(weekStartDate, 1).toISOString(),
         },
         include: {
           employee: true,
@@ -109,15 +98,14 @@ export async function DELETE(
       });
       return NextResponse.json({ updatedAssignment });
     }
+
     // If the week is in the middle of the assignment
     else {
       const [firstPart, secondPart] = await prisma.$transaction([
         prisma.assignment.update({
           where: { id: assignmentId },
           data: {
-            endDate: new Date(
-              weekStartDate.getTime() - 24 * 60 * 60 * 1000
-            ).toISOString(),
+            endDate: subDays(weekStartDate, 1).toISOString(),
           },
           include: {
             employee: true,
@@ -128,9 +116,7 @@ export async function DELETE(
           data: {
             employeeId: assignment.employeeId,
             projectId: assignment.projectId,
-            startDate: new Date(
-              weekEndDate.getTime() + 24 * 60 * 60 * 1000
-            ).toISOString(),
+            startDate: addDays(weekEndDate, 1).toISOString(),
             endDate: assignment.endDate,
             utilisation: assignment.utilisation,
           },
@@ -148,17 +134,9 @@ export async function DELETE(
       });
     }
   } catch (error) {
-    console.error("Error deleting assignment week:", {
-      error,
-      stack: error instanceof Error ? error.stack : undefined,
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-
+    console.error("Error deleting assignment week:", error);
     return NextResponse.json(
-      {
-        error: "Failed to delete assignment week",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Failed to delete assignment week" },
       { status: 500 }
     );
   }
