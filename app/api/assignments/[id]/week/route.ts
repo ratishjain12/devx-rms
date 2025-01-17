@@ -18,11 +18,9 @@ const setEndOfDay = (date: Date): Date => {
 
 const getEndOfWeek = (date: Date): Date => {
   const d = new Date(date);
-  const day = d.getUTCDay();
-  // Calculate days until Saturday (6 - current day)
-  const daysToAdd = 6 - day;
-  d.setUTCDate(d.getUTCDate() + daysToAdd);
-  return setEndOfDay(d);
+  const daysToAdd = 6; // Add 6 days to get the end of the week
+  d.setUTCDate(d.getUTCDate() + daysToAdd); // Add days to reach the end of the week
+  return setEndOfDay(d); // Set to the end of the day (23:59:59.999)
 };
 
 const isDateInRange = (date: Date, start: Date, end: Date): boolean => {
@@ -30,9 +28,6 @@ const isDateInRange = (date: Date, start: Date, end: Date): boolean => {
   return d >= start.getTime() && d <= end.getTime();
 };
 
-// Function to ensure date is in UTC
-
-// route.ts
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -62,7 +57,7 @@ export async function DELETE(
     console.log("Delete request received:", {
       assignmentId,
       weekStart,
-      params: data,
+      params: params,
     });
 
     // Get the current assignment
@@ -81,16 +76,9 @@ export async function DELETE(
       );
     }
 
-    // Debug logging for dates
-    console.log("Assignment dates:", {
-      assignmentStartDate: assignment.startDate,
-      assignmentEndDate: assignment.endDate,
-      weekStart: new Date(weekStart),
-    });
-
     // Convert all dates to UTC and set proper boundaries
     const weekStartDate = setStartOfDay(new Date(weekStart));
-    const weekEndDate = getEndOfWeek(weekStartDate);
+    const weekEndDate = getEndOfWeek(weekStartDate); // Correctly calculate the end of the week
     const assignmentStartDate = setStartOfDay(new Date(assignment.startDate));
     const assignmentEndDate = setEndOfDay(new Date(assignment.endDate));
 
