@@ -74,3 +74,25 @@ export const satisfactionFormatter = (text: string): string => {
     ? formatMap[Satisfaction[enumKey as keyof typeof Satisfaction]]
     : "Unknown Satisfaction Level";
 };
+
+export const toISODateString = (date: Date): string => {
+  // Ensure date is converted to UTC ISO string
+  return new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+  ).toISOString();
+};
+
+export const toISOEndDateString = (date: Date): string => {
+  // Ensure end date is set to end of day in UTC
+  return new Date(
+    Date.UTC(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      23,
+      59,
+      59,
+      999
+    )
+  ).toISOString();
+};

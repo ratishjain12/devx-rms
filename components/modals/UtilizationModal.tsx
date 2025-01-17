@@ -1,5 +1,10 @@
 import React, { useState } from "react";
 import { Assignment, Project } from "@/types/models";
+import {
+  formatDateForInput,
+  toUTCEndOfDay,
+  toUTCStartOfDay,
+} from "@/lib/dateUtils";
 
 interface UtilizationModalProps {
   assignment: Assignment;
@@ -31,11 +36,36 @@ export function UtilizationModal({
   const [previousUtilization, setPreviousUtilization] = useState(
     isSameProject ? assignment.utilisation : 0
   );
-  const [newStartDate, setNewStartDate] = useState(targetWeekStart); // Prefill with target week start
-  const [newEndDate, setNewEndDate] = useState(targetWeekEnd); // Prefill with target week end
+  const [newStartDate, setNewStartDate] = useState(
+    formatDateForInput(targetWeekStart)
+  ); // Prefill with target week start
+  const [newEndDate, setNewEndDate] = useState(
+    formatDateForInput(targetWeekEnd)
+  ); // Prefill with target week end
 
   const handleConfirm = () => {
-    onConfirm(newUtilization, previousUtilization, newStartDate, newEndDate);
+    onConfirm(
+      newUtilization,
+      previousUtilization,
+      toUTCStartOfDay(newStartDate),
+      toUTCEndOfDay(newEndDate)
+    );
+  };
+
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const date = e.target.value;
+    setNewStartDate(date);
+    // Ensure end date is not before start date
+    if (date > newEndDate) {
+      setNewEndDate(date);
+    }
+  };
+
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const date = e.target.value;
+    if (date >= newStartDate) {
+      setNewEndDate(date);
+    }
   };
 
   return (
@@ -65,8 +95,8 @@ export function UtilizationModal({
           <input
             type="date"
             id="newStartDate"
-            value={newStartDate.split("T")[0]}
-            onChange={(e) => setNewStartDate(e.target.value)}
+            value={newStartDate}
+            onChange={handleStartDateChange}
             className="w-full p-2 border rounded"
           />
         </div>
@@ -79,8 +109,9 @@ export function UtilizationModal({
           <input
             type="date"
             id="newEndDate"
-            value={newEndDate.split("T")[0]}
-            onChange={(e) => setNewEndDate(e.target.value)}
+            value={newEndDate}
+            min={newStartDate}
+            onChange={handleEndDateChange}
             className="w-full p-2 border rounded"
           />
         </div>
