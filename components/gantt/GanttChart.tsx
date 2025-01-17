@@ -76,6 +76,8 @@ interface TempWeekDeleteAssignment {
   type: "weekDelete";
   assignmentId: number;
   weekStart: string;
+  mergedStartDate: string;
+  mergedEndDate: string;
 }
 
 type TempAssignment =
@@ -331,121 +333,158 @@ export function GanttChart() {
     handleProjectsChange,
   ]);
 
-  // GanttChart.tsx - Frontend handling of week deletion
-  const handleDeleteSelected = useCallback(() => {
+  // Update the handleDeleteSelected function in GanttChart.tsx
+
+  const handleDeleteSelected = useCallback(async () => {
     if (selectedResources.size === 0 || isDeleting) return;
+    setIsDeleting(true);
 
     try {
-      // Deep copy projects to ensure proper mutation
       const newProjects = JSON.parse(JSON.stringify(projects));
       const newTempAssignments = [...tempAssignments];
 
+      interface AssignmentGroup {
+        projectId: number;
+        assignmentId: number; // Store as number
+        weeksSet: Set<string>;
+      }
+
+      // Group selections by assignmentId
+      const assignmentGroups: Record<string, AssignmentGroup> = {};
+
       selectedResources.forEach((resourceId) => {
-        const [projectId, assignmentId, weekStr] = resourceId
-          .match(/^(\d+)-(\d+)-(.+)$/)!
-          .slice(1);
+        const matches = resourceId.match(/^(\d+)-(\d+)-(.+)$/);
+        if (!matches) {
+          console.error("Invalid resource ID format:", resourceId);
+          return;
+        }
 
-        // Convert weekStr to a Date object
-        const weekStartDate = new Date(weekStr);
+        const [_, projectId, assignmentId, weekStr] = matches;
+        const numericAssignmentId = parseInt(assignmentId);
 
-        // Calculate weekStart and weekEnd in UTC
-        const weekStart = toUTCStartOfDay(weekStartDate.toISOString()); // Pass a string
-        const weekEnd = toUTCEndOfDay(addDays(weekStartDate, 6).toISOString()); // Pass a string
+        if (!assignmentGroups[assignmentId]) {
+          assignmentGroups[assignmentId] = {
+            projectId: parseInt(projectId),
+            assignmentId: numericAssignmentId, // Store parsed number
+            weeksSet: new Set(),
+          };
+        }
+        assignmentGroups[assignmentId].weeksSet.add(weekStr);
+      });
 
-        console.log("Week Range:", {
-          weekStart: weekStart,
-          weekEnd: weekEnd,
-        });
-
-        newTempAssignments.push({
-          type: "weekDelete",
-          assignmentId: parseInt(assignmentId),
-          weekStart: weekStart, // Already a string
-        });
-
-        const projectIndex = newProjects.findIndex(
-          (p: Project) => p.id === parseInt(projectId)
+      // Process each assignment
+      Object.entries(assignmentGroups).forEach(([_, group]) => {
+        const weeks = Array.from(group.weeksSet).sort(
+          (a, b) => new Date(a).getTime() - new Date(b).getTime()
         );
 
-        if (projectIndex !== -1) {
-          const assignment = newProjects[projectIndex].assignments.find(
-            (a: Assignment) => a.id === parseInt(assignmentId)
+        const minWeek = new Date(weeks[0]);
+        const maxWeek = new Date(weeks[weeks.length - 1]);
+
+        // Calculate merged date range
+        const mergedStartDate = new Date(minWeek);
+        mergedStartDate.setUTCHours(0, 0, 0, 0);
+
+        const mergedEndDate = addDays(maxWeek, 6);
+        mergedEndDate.setUTCHours(23, 59, 59, 999);
+
+        // Add to tempAssignments with numeric assignmentId
+        newTempAssignments.push({
+          type: "weekDelete",
+          assignmentId: group.assignmentId, // Already a number
+          weekStart: minWeek.toISOString(),
+          mergedStartDate: mergedStartDate.toISOString(),
+          mergedEndDate: mergedEndDate.toISOString(),
+        });
+
+        // Find and update the assignment in UI
+        const projectIndex = newProjects.findIndex(
+          (p: { id: number }) => p.id === group.projectId
+        );
+        if (projectIndex === -1) return;
+
+        const assignment = newProjects[projectIndex].assignments.find(
+          (a: { id: number }) => a.id === group.assignmentId
+        );
+        if (!assignment) return;
+
+        const assignmentStartDate = new Date(assignment.startDate);
+        assignmentStartDate.setUTCHours(0, 0, 0, 0);
+
+        const assignmentEndDate = new Date(assignment.endDate);
+        assignmentEndDate.setUTCHours(23, 59, 59, 999);
+
+        // Handle the different cases exactly like the API
+        if (
+          assignmentStartDate >= mergedStartDate &&
+          assignmentEndDate <= mergedEndDate
+        ) {
+          // Complete deletion
+          newProjects[projectIndex].assignments = newProjects[
+            projectIndex
+          ].assignments.filter(
+            (a: { id: number }) => a.id !== group.assignmentId
           );
-
-          if (assignment) {
-            const assignmentStartDate = new Date(assignment.startDate);
-            const assignmentEndDate = new Date(assignment.endDate);
-
-            // Handle middle week deletion
-            if (
-              assignmentStartDate < new Date(weekStart) &&
-              assignmentEndDate > new Date(weekEnd)
-            ) {
-              // Split the assignment into two parts
-              const firstPart = {
-                ...assignment,
-                endDate: new Date(
-                  new Date(weekStart).getTime() - 1
-                ).toISOString(), // End at 23:59:59.999 of previous day
+        } else if (
+          assignmentStartDate < mergedStartDate &&
+          assignmentEndDate > mergedEndDate
+        ) {
+          // Split into two parts
+          const beforePart = {
+            ...assignment,
+            id: -Date.now(),
+            endDate: new Date(mergedStartDate.getTime() - 1).toISOString(),
+          };
+          const afterPart = {
+            ...assignment,
+            id: -(Date.now() + 1),
+            startDate: new Date(mergedEndDate.getTime() + 1).toISOString(),
+          };
+          newProjects[projectIndex].assignments = newProjects[
+            projectIndex
+          ].assignments.filter(
+            (a: { id: number }) => a.id !== group.assignmentId
+          );
+          newProjects[projectIndex].assignments.push(beforePart, afterPart);
+        } else if (assignmentStartDate < mergedStartDate) {
+          // Keep the part before mergedStart
+          newProjects[projectIndex].assignments = newProjects[
+            projectIndex
+          ].assignments.map((a: { id: number }) => {
+            if (a.id === group.assignmentId) {
+              return {
+                ...a,
+                endDate: new Date(mergedStartDate.getTime() - 1).toISOString(),
               };
-              const secondPart = {
-                ...assignment,
-                id: -Date.now(), // Temporary negative ID for UI
-                startDate: new Date(
-                  new Date(weekEnd).getTime() + 1
-                ).toISOString(), // Start at 00:00:00.000 of next day
-              };
-
-              // Replace the original assignment with both parts
-              newProjects[projectIndex].assignments = newProjects[
-                projectIndex
-              ].assignments
-                .filter((a: Assignment) => a.id !== parseInt(assignmentId))
-                .concat([firstPart, secondPart]);
-            } else if (
-              isWithinInterval(assignmentStartDate, {
-                start: new Date(weekStart),
-                end: new Date(weekEnd),
-              })
-            ) {
-              assignment.startDate = new Date(
-                new Date(weekEnd).getTime() + 1
-              ).toISOString(); // Start at 00:00:00.000 of next day
-            } else if (
-              isWithinInterval(assignmentEndDate, {
-                start: new Date(weekStart),
-                end: new Date(weekEnd),
-              })
-            ) {
-              assignment.endDate = new Date(
-                new Date(weekStart).getTime() - 1
-              ).toISOString(); // End at 23:59:59.999 of previous day
             }
-
-            // Filter out invalid assignments
-            newProjects[projectIndex].assignments = newProjects[
-              projectIndex
-            ].assignments.filter((a: Assignment) => {
-              try {
-                const startDate = new Date(a.startDate);
-                const endDate = new Date(a.endDate);
-                return (
-                  !isNaN(startDate.getTime()) &&
-                  !isNaN(endDate.getTime()) &&
-                  startDate <= endDate
-                );
-              } catch {
-                return false;
-              }
-            });
-          }
+            return a;
+          });
+        } else if (assignmentEndDate > mergedEndDate) {
+          // Keep the part after mergedEnd
+          newProjects[projectIndex].assignments = newProjects[
+            projectIndex
+          ].assignments.map((a: { id: number }) => {
+            if (a.id === group.assignmentId) {
+              return {
+                ...a,
+                startDate: new Date(mergedEndDate.getTime() + 1).toISOString(),
+              };
+            }
+            return a;
+          });
         }
       });
 
-      // Create new history entry
+      // Update states
+      setProjects(newProjects);
+      setTempAssignments(newTempAssignments);
+      setHasUnsavedChanges(true);
+      setSelectedResources(new Set());
+
+      // Update history
       const newHistoryEntry = {
-        projects: JSON.parse(JSON.stringify(newProjects)),
-        tempAssignments: [...newTempAssignments],
+        projects: newProjects,
+        tempAssignments: newTempAssignments,
         selectedResources: new Set(selectedResources),
       };
 
@@ -454,11 +493,6 @@ export function GanttChart() {
         newHistoryEntry,
       ]);
       setCurrentHistoryIndex((prev) => prev + 1);
-
-      setProjects(newProjects);
-      setTempAssignments(newTempAssignments);
-      setHasUnsavedChanges(true);
-      setSelectedResources(new Set());
     } catch (error) {
       console.error("Error handling deletions:", error);
       toast({
@@ -466,6 +500,8 @@ export function GanttChart() {
         description: "Failed to process deletions",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false);
     }
   }, [
     selectedResources,
@@ -516,19 +552,7 @@ export function GanttChart() {
       for (const temp of tempAssignments) {
         try {
           if (temp.type === "weekDelete") {
-            // Calculate weekStart and weekEnd in UTC
-            const weekStart = toUTCStartOfDay(
-              new Date(temp.weekStart).toISOString()
-            );
-            const weekEnd = toUTCEndOfDay(
-              addDays(new Date(temp.weekStart), 6).toISOString()
-            );
-
-            console.log("Week Range for Deletion:", {
-              weekStart: weekStart,
-              weekEnd: weekEnd,
-            });
-
+            // Call the API to delete the week for the assignment
             const response = await fetch(
               `/api/assignments/${temp.assignmentId}/week`,
               {
@@ -537,7 +561,9 @@ export function GanttChart() {
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  weekStart: weekStart,
+                  weekStart: temp.weekStart,
+                  mergedStartDate: temp.mergedStartDate,
+                  mergedEndDate: temp.mergedEndDate,
                 }),
               }
             );
@@ -557,6 +583,7 @@ export function GanttChart() {
               );
             }
 
+            // Update the projects state with the returned assignments
             const projectIndex = projects.findIndex((p) =>
               p.assignments.some((a) => a.id === temp.assignmentId)
             );
@@ -917,6 +944,8 @@ export function GanttChart() {
       setAvailableEmployees([]);
     }
   };
+
+  console.log(selectedResources);
 
   const handleAddAssignment = (projectId: number) => {
     const project = projects.find((p) => p.id === projectId);

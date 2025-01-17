@@ -16,17 +16,12 @@ const setEndOfDay = (date: Date): Date => {
   return d;
 };
 
-const getEndOfWeek = (date: Date): Date => {
-  const d = new Date(date);
-  const daysToAdd = 6; // Add 6 days to get the end of the week
-  d.setUTCDate(d.getUTCDate() + daysToAdd); // Add days to reach the end of the week
-  return setEndOfDay(d); // Set to the end of the day (23:59:59.999)
-};
-
-const isDateInRange = (date: Date, start: Date, end: Date): boolean => {
-  const d = date.getTime();
-  return d >= start.getTime() && d <= end.getTime();
-};
+// const getEndOfWeek = (date: Date): Date => {
+//   const d = new Date(date);
+//   const daysToAdd = 6; // Add 6 days to get the end of the week
+//   d.setUTCDate(d.getUTCDate() + daysToAdd); // Add days to reach the end of the week
+//   return setEndOfDay(d); // Set to the end of the day (23:59:59.999)
+// };
 
 export async function DELETE(
   request: Request,
@@ -36,12 +31,15 @@ export async function DELETE(
     const data = await params;
     const assignmentId = parseInt(data.id);
     const requestBody = await request.json();
-    const { weekStart } = requestBody;
+    const { weekStart, mergedStartDate, mergedEndDate } = requestBody;
 
     // Validate input
-    if (!weekStart) {
+    if (!weekStart || !mergedStartDate || !mergedEndDate) {
       return NextResponse.json(
-        { error: "Week start date is required" },
+        {
+          error:
+            "Week start, merged start date, and merged end date are required",
+        },
         { status: 400 }
       );
     }
@@ -52,13 +50,6 @@ export async function DELETE(
         { status: 400 }
       );
     }
-
-    // Debug logging
-    console.log("Delete request received:", {
-      assignmentId,
-      weekStart,
-      params: params,
-    });
 
     // Get the current assignment
     const assignment = await prisma.assignment.findUnique({
@@ -77,131 +68,90 @@ export async function DELETE(
     }
 
     // Convert all dates to UTC and set proper boundaries
-    const weekStartDate = setStartOfDay(new Date(weekStart));
-    const weekEndDate = getEndOfWeek(weekStartDate); // Correctly calculate the end of the week
+    // const weekStartDate = setStartOfDay(new Date(weekStart));
+    // const weekEndDate = getEndOfWeek(weekStartDate);
+    const mergedStart = setStartOfDay(new Date(mergedStartDate));
+    const mergedEnd = setEndOfDay(new Date(mergedEndDate));
+
     const assignmentStartDate = setStartOfDay(new Date(assignment.startDate));
     const assignmentEndDate = setEndOfDay(new Date(assignment.endDate));
 
-    // Debug logging
-    console.log({
-      weekStartDate: weekStartDate.toISOString(),
-      weekEndDate: weekEndDate.toISOString(),
-      assignmentStartDate: assignmentStartDate.toISOString(),
-      assignmentEndDate: assignmentEndDate.toISOString(),
-      isBeforeWeek: assignmentStartDate < weekStartDate,
-      isAfterWeek: assignmentEndDate > weekEndDate,
-    });
+    // Check if the assignment completely fits within the merged week range
+    if (assignmentStartDate >= mergedStart && assignmentEndDate <= mergedEnd) {
+      // If the assignment completely fits within the merged week range, delete it
+      await prisma.assignment.delete({
+        where: { id: assignmentId },
+      });
 
-    // If the week is in the middle of the assignment
-    if (
-      assignmentStartDate.getTime() < weekStartDate.getTime() &&
-      assignmentEndDate.getTime() > weekEndDate.getTime()
-    ) {
-      console.log("Splitting assignment in middle");
-      try {
-        // Create two new assignments with clean boundaries
-        const [firstPart, secondPart] = await prisma.$transaction([
-          prisma.assignment.update({
-            where: { id: assignmentId },
-            data: {
-              endDate: new Date(weekStartDate.getTime() - 1), // End at 23:59:59.999 of previous day
-            },
-            include: {
-              employee: true,
-              project: true,
-            },
-          }),
+      return NextResponse.json({
+        message: "Assignment deleted successfully",
+      });
+    } else {
+      // Handle partial overlaps or spans
+      if (assignmentStartDate < mergedStart && assignmentEndDate > mergedEnd) {
+        // Split the assignment into two parts: before and after the merged week range
+        const [beforeWeek, afterWeek] = await prisma.$transaction([
+          // Part 1: Before the merged week range
           prisma.assignment.create({
             data: {
               employeeId: assignment.employeeId,
               projectId: assignment.projectId,
-              startDate: new Date(weekEndDate.getTime() + 1), // Start at 00:00:00.000 of next day
-              endDate: assignment.endDate,
+              startDate: assignmentStartDate.toISOString(),
+              endDate: new Date(mergedStart.getTime() - 1).toISOString(), // End at 23:59:59.999 of the previous day
               utilisation: assignment.utilisation,
             },
-            include: {
-              employee: true,
-              project: true,
+          }),
+          // Part 2: After the merged week range
+          prisma.assignment.create({
+            data: {
+              employeeId: assignment.employeeId,
+              projectId: assignment.projectId,
+              startDate: new Date(mergedEnd.getTime() + 1).toISOString(), // Start at 00:00:00.000 of the next day
+              endDate: assignmentEndDate.toISOString(),
+              utilisation: assignment.utilisation,
             },
           }),
         ]);
 
-        console.log("Split successful:", { firstPart, secondPart });
+        // Delete the original assignment
+        await prisma.assignment.delete({
+          where: { id: assignmentId },
+        });
 
         return NextResponse.json({
-          updatedAssignment: firstPart,
-          newAssignment: secondPart,
+          message:
+            "Assignment split into two parts (before and after the merged week range)",
+          beforeWeek,
+          afterWeek,
         });
-      } catch (error) {
-        console.error("Error during split:", error);
-        return NextResponse.json(
-          { error: "Failed to split assignment" },
-          { status: 500 }
-        );
-      }
-    }
-    // If the week is at the start of the assignment
-    else if (isDateInRange(assignmentStartDate, weekStartDate, weekEndDate)) {
-      console.log("Updating assignment start");
-      try {
-        const updatedAssignment = await prisma.assignment.update({
+      } else if (assignmentStartDate < mergedStart) {
+        // Adjust the end date to exclude the merged week range
+        await prisma.assignment.update({
           where: { id: assignmentId },
           data: {
-            startDate: new Date(weekEndDate.getTime() + 1), // Start at 00:00:00.000 of next day
-          },
-          include: {
-            employee: true,
-            project: true,
+            endDate: new Date(mergedStart.getTime() - 1).toISOString(), // End at 23:59:59.999 of the previous day
           },
         });
 
-        return NextResponse.json({ updatedAssignment });
-      } catch (error) {
-        console.error("Error updating assignment start:", error);
-        return NextResponse.json(
-          { error: "Failed to update assignment start date" },
-          { status: 500 }
-        );
-      }
-    }
-    // If the week is at the end of the assignment
-    else if (isDateInRange(assignmentEndDate, weekStartDate, weekEndDate)) {
-      console.log("Updating assignment end");
-      try {
-        const updatedAssignment = await prisma.assignment.update({
+        return NextResponse.json({
+          message:
+            "Assignment end date updated to exclude the merged week range",
+        });
+      } else if (assignmentEndDate > mergedEnd) {
+        // Adjust the start date to exclude the merged week range
+        await prisma.assignment.update({
           where: { id: assignmentId },
           data: {
-            endDate: new Date(weekStartDate.getTime() - 1), // End at 23:59:59.999 of previous day
-          },
-          include: {
-            employee: true,
-            project: true,
+            startDate: new Date(mergedEnd.getTime() + 1).toISOString(), // Start at 00:00:00.000 of the next day
           },
         });
 
-        return NextResponse.json({ updatedAssignment });
-      } catch (error) {
-        console.error("Error updating assignment end:", error);
-        return NextResponse.json(
-          { error: "Failed to update assignment end date" },
-          { status: 500 }
-        );
+        return NextResponse.json({
+          message:
+            "Assignment start date updated to exclude the merged week range",
+        });
       }
     }
-
-    console.log("No condition matched - Invalid week range");
-    return NextResponse.json(
-      {
-        error: "Invalid week range",
-        details: {
-          weekStart: weekStartDate,
-          weekEnd: weekEndDate,
-          assignmentStart: assignmentStartDate,
-          assignmentEnd: assignmentEndDate,
-        },
-      },
-      { status: 400 }
-    );
   } catch (error) {
     console.error("Error deleting assignment week:", error);
     return NextResponse.json(

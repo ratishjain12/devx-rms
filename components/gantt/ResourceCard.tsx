@@ -101,24 +101,15 @@ export function ResourceCard({
       new Date(week.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString()
     );
 
-    console.log(`Calculating for Week UTC: ${weekStart} to ${weekEnd}`);
-
     return allAssignments
       .filter((a) => a.employeeId === assignment.employeeId)
       .reduce((total, currentAssignment) => {
         const assignmentStart = toUTCStartOfDay(currentAssignment.startDate);
         const assignmentEnd = toUTCEndOfDay(currentAssignment.endDate);
 
-        console.log(
-          `Checking assignment UTC: ${assignmentStart} to ${assignmentEnd}, Utilization: ${currentAssignment.utilisation}`
-        );
-
         if (
           isDateOverlapping(assignmentStart, assignmentEnd, weekStart, weekEnd)
         ) {
-          console.log(
-            `Assignment overlaps with the week. Adding utilization: ${currentAssignment.utilisation}`
-          );
           return total + currentAssignment.utilisation;
         }
 
