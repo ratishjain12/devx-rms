@@ -344,13 +344,23 @@ export function GanttChart() {
         const [projectId, assignmentId, weekStr] = resourceId
           .match(/^(\d+)-(\d+)-(.+)$/)!
           .slice(1);
-        const weekStart = startOfWeek(new Date(weekStr));
-        const weekEnd = endOfWeek(weekStart);
+
+        // Convert weekStr to a Date object
+        const weekStartDate = new Date(weekStr);
+
+        // Calculate weekStart and weekEnd in UTC
+        const weekStart = toUTCStartOfDay(weekStartDate.toISOString()); // Pass a string
+        const weekEnd = toUTCEndOfDay(addDays(weekStartDate, 6).toISOString()); // Pass a string
+
+        console.log("Week Range:", {
+          weekStart: weekStart,
+          weekEnd: weekEnd,
+        });
 
         newTempAssignments.push({
           type: "weekDelete",
           assignmentId: parseInt(assignmentId),
-          weekStart: weekStart.toISOString(),
+          weekStart: weekStart, // Already a string
         });
 
         const projectIndex = newProjects.findIndex(
@@ -368,18 +378,22 @@ export function GanttChart() {
 
             // Handle middle week deletion
             if (
-              assignmentStartDate < weekStart &&
-              assignmentEndDate > weekEnd
+              assignmentStartDate < new Date(weekStart) &&
+              assignmentEndDate > new Date(weekEnd)
             ) {
               // Split the assignment into two parts
               const firstPart = {
                 ...assignment,
-                endDate: new Date(weekStart.getTime() - 86400000).toISOString(),
+                endDate: new Date(
+                  new Date(weekStart).getTime() - 1
+                ).toISOString(), // End at 23:59:59.999 of previous day
               };
               const secondPart = {
                 ...assignment,
                 id: -Date.now(), // Temporary negative ID for UI
-                startDate: new Date(weekEnd.getTime() + 86400000).toISOString(),
+                startDate: new Date(
+                  new Date(weekEnd).getTime() + 1
+                ).toISOString(), // Start at 00:00:00.000 of next day
               };
 
               // Replace the original assignment with both parts
@@ -390,22 +404,22 @@ export function GanttChart() {
                 .concat([firstPart, secondPart]);
             } else if (
               isWithinInterval(assignmentStartDate, {
-                start: weekStart,
-                end: weekEnd,
+                start: new Date(weekStart),
+                end: new Date(weekEnd),
               })
             ) {
               assignment.startDate = new Date(
-                weekEnd.getTime() + 86400000
-              ).toISOString();
+                new Date(weekEnd).getTime() + 1
+              ).toISOString(); // Start at 00:00:00.000 of next day
             } else if (
               isWithinInterval(assignmentEndDate, {
-                start: weekStart,
-                end: weekEnd,
+                start: new Date(weekStart),
+                end: new Date(weekEnd),
               })
             ) {
               assignment.endDate = new Date(
-                weekStart.getTime() - 86400000
-              ).toISOString();
+                new Date(weekStart).getTime() - 1
+              ).toISOString(); // End at 23:59:59.999 of previous day
             }
 
             // Filter out invalid assignments
@@ -502,6 +516,19 @@ export function GanttChart() {
       for (const temp of tempAssignments) {
         try {
           if (temp.type === "weekDelete") {
+            // Calculate weekStart and weekEnd in UTC
+            const weekStart = toUTCStartOfDay(
+              new Date(temp.weekStart).toISOString()
+            );
+            const weekEnd = toUTCEndOfDay(
+              addDays(new Date(temp.weekStart), 6).toISOString()
+            );
+
+            console.log("Week Range for Deletion:", {
+              weekStart: weekStart,
+              weekEnd: weekEnd,
+            });
+
             const response = await fetch(
               `/api/assignments/${temp.assignmentId}/week`,
               {
@@ -510,9 +537,7 @@ export function GanttChart() {
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  weekStart: toUTCStartOfDay(
-                    new Date(temp.weekStart).toISOString()
-                  ),
+                  weekStart: weekStart,
                 }),
               }
             );
