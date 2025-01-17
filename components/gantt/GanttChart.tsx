@@ -1216,7 +1216,7 @@ export function GanttChart() {
   // Update the grid structure in GanttChart.tsx
   return (
     <div className="mx-auto p-4 pb-20">
-      <div className="border rounded-lg bg-white shadow">
+      <div className="border  bg-white ">
         <div className="overflow-x-auto">
           <div className="min-w-max">
             {/* Timeline Header */}
@@ -1299,40 +1299,39 @@ export function GanttChart() {
 
         {/* Footer */}
         <div className="fixed left-0 right-0 bottom-0 p-4 z-20 flex justify-end gap-4 bg-white border-t">
-          <div className="flex gap-2">
-            <button
-              onClick={handleUndo}
-              disabled={currentHistoryIndex <= 0}
-              className={`px-4 py-2 rounded flex items-center gap-2
+          <button
+            onClick={handleUndo}
+            disabled={currentHistoryIndex <= 0}
+            className={`px-4 py-2 rounded flex items-center gap-2
         ${
           currentHistoryIndex > 0
             ? "bg-gray-100 hover:bg-gray-200"
             : "bg-gray-100 text-gray-400 cursor-not-allowed"
         }`}
-            >
-              <Undo2 size={16} />
-              Undo
-            </button>
-            <button
-              onClick={handleReset}
-              disabled={!hasUnsavedChanges}
-              className={`px-4 py-2 rounded flex items-center gap-2
+          >
+            <Undo2 size={16} />
+            Undo
+          </button>
+          <button
+            onClick={handleReset}
+            disabled={!hasUnsavedChanges}
+            className={`px-4 py-2 rounded flex items-center gap-2
         ${
           hasUnsavedChanges
             ? "bg-gray-100 hover:bg-gray-200"
             : "bg-gray-100 text-gray-400 cursor-not-allowed"
         }`}
-            >
-              <RotateCcw size={16} />
-              Reset
-            </button>
-          </div>
+          >
+            <RotateCcw size={16} />
+            Reset
+          </button>
+
           <button
             onClick={handleSave}
             disabled={!hasUnsavedChanges || isSaving}
             className={`px-4 py-2 rounded flex items-center gap-2 ${
               hasUnsavedChanges
-                ? "bg-blue-500 text-white hover:bg-blue-600"
+                ? "bg-black text-white hover:bg-secondary hover:text-black"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
@@ -1345,7 +1344,7 @@ export function GanttChart() {
           </button>
           <button
             onClick={() => setShowAddProjectModal(true)}
-            className="bg-blue-500 px-4 py-2 rounded flex items-center gap-2 text-white hover:bg-blue-600"
+            className="px-4 py-2 rounded flex items-center gap-2  bg-black text-white hover:bg-secondary hover:text-black"
           >
             <Plus size={16} />
             Add Project

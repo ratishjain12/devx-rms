@@ -79,9 +79,23 @@ export function AssignmentModal({
                   {project.projectRequirements.map((req, index) => (
                     <div
                       key={index}
-                      className="px-3 py-1 bg-gray-100 rounded-full text-sm"
+                      className="px-3 py-1 flex flex-col gap-2 bg-gray-100 rounded-md text-sm"
                     >
                       {req.role.name} ({req.seniority}) - {req.quantity}
+                      <br />
+                      <span className="text-gray-500">
+                        {new Date(req.startDate).toLocaleDateString("en-US", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}{" "}
+                        -{" "}
+                        {new Date(req.endDate).toLocaleDateString("en-US", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -173,9 +187,7 @@ export function AssignmentModal({
                   <div className="space-y-2 text-sm">
                     <div>
                       <span className="text-gray-600">Skills:</span>{" "}
-                      <span className="font-medium">
-                        {employee.skills.join(", ")}
-                      </span>
+                      <span className="font-medium">{employee.name}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">Roles:</span>{" "}

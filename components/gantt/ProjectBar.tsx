@@ -165,14 +165,10 @@ export function ProjectBar({
   const getProgressInfo = () => {
     const { status } = requirementStatus;
     switch (status) {
-      case "fulfilled":
-        return { color: "bg-green-500" };
-      case "partial":
-        return { color: "bg-yellow-500" };
       case "unfulfilled":
-        return { color: "bg-red-500" };
+        return { color: "bg-[#FF0000]" };
       default:
-        return { color: "bg-gray-400" };
+        return { color: "bg-transparent" };
     }
   };
 
@@ -187,10 +183,12 @@ export function ProjectBar({
   return (
     <div className="flex min-w-max border-b hover:bg-gray-50">
       {/* Project Info Column */}
-      <div className="w-48 flex justify-between flex-shrink-0 py-2 px-3 border-r bg-white">
+      <div className="relative w-48 flex justify-between flex-shrink-0 py-3 px-3 border-r bg-white">
         <div className="flex flex-1 items-center justify-between gap-2">
-          <div className="flex justify-between items-center gap-2 min-w-0">
-            <div className={`w-2 h-2 rounded-full ${progressInfo.color}`} />
+          <div className=" flex justify-between items-center gap-2 min-w-0">
+            <div
+              className={`h-full w-[6px] absolute left-0 ${progressInfo.color}`}
+            />
             <Link href={`/projects/${project.id}`} className="group truncate">
               <h3
                 className="font-medium capitalize truncate text-sm"
@@ -205,7 +203,7 @@ export function ProjectBar({
           </div>
           <button
             onClick={() => onAddAssignment(project.id)}
-            className="flex-shrink-0 text-blue-500 hover:text-blue-600 p-1 rounded hover:bg-blue-50"
+            className="flex-shrink-0 text-black hover:text-gray-600 p-1 rounded"
             title="Add Assignment"
           >
             <PlusCircle size={18} />
