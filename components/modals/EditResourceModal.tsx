@@ -8,6 +8,11 @@ import {
   DialogOverlay,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  formatDateForInput,
+  toUTCEndOfDay,
+  toUTCStartOfDay,
+} from "@/lib/dateUtils";
 
 interface EditResourceModalProps {
   assignment: Assignment;
@@ -33,9 +38,11 @@ export function EditResourceModal({
 }: EditResourceModalProps) {
   const [utilization, setUtilization] = useState(assignment.utilisation);
   const [startDate, setStartDate] = useState(
-    assignment.startDate.split("T")[0]
+    formatDateForInput(assignment.startDate)
   );
-  const [endDate, setEndDate] = useState(assignment.endDate.split("T")[0]);
+  const [endDate, setEndDate] = useState(
+    formatDateForInput(assignment.endDate)
+  );
 
   const handleConfirm = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -44,8 +51,8 @@ export function EditResourceModal({
       assignment.id,
       assignment?.employeeId,
       assignment?.projectId,
-      startDate,
-      endDate,
+      toUTCStartOfDay(startDate),
+      toUTCEndOfDay(endDate),
       utilization
     );
     onClose();

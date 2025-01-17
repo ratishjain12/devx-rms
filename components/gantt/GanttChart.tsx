@@ -36,9 +36,10 @@ import {
 import { Project, Employee, Assignment } from "@/types/models";
 import { AddProjectModal } from "../modals/AddProjectModal";
 import { Undo2, RotateCcw, Save, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, toISODateString, toISOEndDateString } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { toUTCEndOfDay, toUTCStartOfDay } from "@/lib/dateUtils";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -164,10 +165,6 @@ export function GanttChart() {
   const sensors = useSensors(pointerSensor, keyboardSensor);
 
   const [pasteTargetWeek, setPasteTargetWeek] = useState<string | null>(null);
-  useEffect(() => {
-    fetchProjects();
-    fetchAllEmployees();
-  }, []);
 
   const handleCopy = useCallback(() => {
     if (selectedResources.size > 0) {
@@ -238,169 +235,6 @@ export function GanttChart() {
       setTempAssignments(previousState.tempAssignments);
     }
   }, [currentHistoryIndex, projectsHistory]);
-
-  const handleSave = useCallback(async () => {
-    if (isSaving) return;
-
-    setIsSaving(true);
-    try {
-      for (const temp of tempAssignments) {
-        if (temp.type === "weekDelete") {
-          const response = await fetch(
-            `/api/assignments/${temp.assignmentId}/week`,
-            {
-              method: "DELETE",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                weekStart: temp.weekStart,
-              }),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(
-              `Failed to delete week for assignment ${temp.assignmentId}`
-            );
-          }
-
-          const result = await response.json();
-          const projectIndex = projects.findIndex((p) =>
-            p.assignments.some((a) => a.id === temp.assignmentId)
-          );
-
-          if (projectIndex !== -1) {
-            const updatedProjects = [...projects];
-            const projectAssignments =
-              updatedProjects[projectIndex].assignments;
-
-            // Remove the original assignment
-            updatedProjects[projectIndex].assignments =
-              projectAssignments.filter((a) => a.id !== temp.assignmentId);
-
-            // Add the updated assignment if it's valid
-            if (
-              result.updatedAssignment?.startDate &&
-              result.updatedAssignment?.endDate
-            ) {
-              const startDate = new Date(result.updatedAssignment.startDate);
-              const endDate = new Date(result.updatedAssignment.endDate);
-
-              if (
-                !isNaN(startDate.getTime()) &&
-                !isNaN(endDate.getTime()) &&
-                startDate <= endDate
-              ) {
-                updatedProjects[projectIndex].assignments.push(
-                  result.updatedAssignment
-                );
-              }
-            }
-
-            // Add the new assignment if it exists and is valid (for split cases)
-            if (
-              result.newAssignment?.startDate &&
-              result.newAssignment?.endDate
-            ) {
-              const startDate = new Date(result.newAssignment.startDate);
-              const endDate = new Date(result.newAssignment.endDate);
-
-              if (
-                !isNaN(startDate.getTime()) &&
-                !isNaN(endDate.getTime()) &&
-                startDate <= endDate
-              ) {
-                updatedProjects[projectIndex].assignments.push(
-                  result.newAssignment
-                );
-              }
-            }
-
-            setProjects(updatedProjects);
-          }
-        } else if (temp.type === "edited") {
-          await fetch(`/api/assignments/${temp.assignmentId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              employeeId: temp.updates.employeeId,
-              projectId: temp.updates.projectId,
-              startDate: temp.updates.startDate,
-              endDate: temp.updates.endDate,
-              utilisation: temp.updates.utilisation,
-            }),
-          });
-        } else if (temp.type === "moved") {
-          if (temp.isSameProject) {
-            await fetch(`/api/assignments/${temp.assignment.id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                employeeId: temp.assignment.employeeId,
-                projectId: temp.toProjectId,
-                startDate: temp.assignment.startDate,
-                endDate: temp.assignment.endDate,
-                utilisation: temp.newUtilization,
-              }),
-            });
-          } else {
-            if (temp.previousUtilization > 0) {
-              await fetch(`/api/assignments/${temp.assignment.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  employeeId: temp.assignment.employeeId,
-                  projectId: temp.fromProjectId,
-                  startDate: temp.assignment.startDate,
-                  endDate: temp.assignment.endDate,
-                  utilisation: temp.previousUtilization,
-                }),
-              });
-            } else {
-              await fetch(`/api/assignments/${temp.assignment.id}`, {
-                method: "DELETE",
-              });
-            }
-
-            if (temp.newUtilization > 0) {
-              await fetch("/api/assignments", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  employeeId: temp.assignment.employeeId,
-                  projectId: temp.toProjectId,
-                  startDate: temp.assignment.startDate,
-                  endDate: temp.assignment.endDate,
-                  utilisation: temp.newUtilization,
-                }),
-              });
-            }
-          }
-        } else if (temp.type === "new") {
-          await fetch("/api/assignments", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              employeeId: temp.employeeId,
-              projectId: temp.projectId,
-              startDate: temp.startDate,
-              endDate: temp.endDate,
-              utilisation: temp.utilisation,
-            }),
-          });
-        }
-      }
-
-      await fetchProjects();
-      setTempAssignments([]);
-      setHasUnsavedChanges(false);
-    } catch (error) {
-      console.error("Error saving changes:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [tempAssignments, projects, isSaving]);
 
   const handleProjectsChange = useCallback(
     (newProjects: Project[], newTempAssignments: TempAssignment[]) => {
@@ -627,6 +461,294 @@ export function GanttChart() {
     currentHistoryIndex,
   ]);
 
+  const handleResourceSelect = (resourceId: string, selected: boolean) => {
+    setSelectedResources((prev) => {
+      const newSelection = new Set(prev);
+      if (selected) {
+        newSelection.add(resourceId);
+      } else {
+        newSelection.delete(resourceId);
+      }
+      return newSelection;
+    });
+    console.log(selectedResources);
+  };
+
+  const fetchProjects = useCallback(async () => {
+    try {
+      const response = await fetch("/api/projects");
+      const data = await response.json();
+      // Create a deep copy of initial data
+      const initialProjects = JSON.parse(JSON.stringify(data.projects));
+      setProjects(initialProjects);
+      // Initialize history with a deep copy
+      setProjectsHistory([
+        {
+          projects: JSON.parse(JSON.stringify(initialProjects)),
+          tempAssignments: [],
+        },
+      ]);
+      setCurrentHistoryIndex(0);
+    } catch (error) {
+      console.error("Failed to fetch projects:", error);
+    }
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
+      for (const temp of tempAssignments) {
+        try {
+          if (temp.type === "weekDelete") {
+            const response = await fetch(
+              `/api/assignments/${temp.assignmentId}/week`,
+              {
+                method: "DELETE",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  weekStart: toUTCStartOfDay(
+                    new Date(temp.weekStart).toISOString()
+                  ),
+                }),
+              }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+              console.error("Delete failed:", {
+                status: response.status,
+                error: result.error,
+                assignmentId: temp.assignmentId,
+                weekStart: temp.weekStart,
+              });
+              throw new Error(
+                result.error ||
+                  `Failed to delete week for assignment ${temp.assignmentId}`
+              );
+            }
+
+            const projectIndex = projects.findIndex((p) =>
+              p.assignments.some((a) => a.id === temp.assignmentId)
+            );
+
+            if (projectIndex !== -1) {
+              const updatedProjects = [...projects];
+              const projectAssignments =
+                updatedProjects[projectIndex].assignments;
+
+              // Remove the original assignment
+              updatedProjects[projectIndex].assignments =
+                projectAssignments.filter((a) => a.id !== temp.assignmentId);
+
+              // Add the updated assignment if it exists and is valid
+              if (result.updatedAssignment) {
+                const startDate = new Date(result.updatedAssignment.startDate);
+                const endDate = new Date(result.updatedAssignment.endDate);
+
+                if (
+                  !isNaN(startDate.getTime()) &&
+                  !isNaN(endDate.getTime()) &&
+                  startDate <= endDate
+                ) {
+                  updatedProjects[projectIndex].assignments.push(
+                    result.updatedAssignment
+                  );
+                }
+              }
+
+              // Add the new assignment if it exists and is valid (for split cases)
+              if (result.newAssignment) {
+                const startDate = new Date(result.newAssignment.startDate);
+                const endDate = new Date(result.newAssignment.endDate);
+
+                if (
+                  !isNaN(startDate.getTime()) &&
+                  !isNaN(endDate.getTime()) &&
+                  startDate <= endDate
+                ) {
+                  updatedProjects[projectIndex].assignments.push(
+                    result.newAssignment
+                  );
+                }
+              }
+
+              setProjects(updatedProjects);
+            }
+          } else if (temp.type === "edited") {
+            const response = await fetch(
+              `/api/assignments/${temp.assignmentId}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  employeeId: temp.updates.employeeId,
+                  projectId: temp.updates.projectId,
+                  startDate: toUTCStartOfDay(
+                    new Date(temp.updates.startDate).toISOString()
+                  ),
+                  endDate: toUTCEndOfDay(
+                    new Date(temp.updates.endDate).toISOString()
+                  ),
+                  utilisation: temp.updates.utilisation,
+                }),
+              }
+            );
+
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.error || "Failed to update assignment");
+            }
+          } else if (temp.type === "moved") {
+            if (temp.isSameProject) {
+              const response = await fetch(
+                `/api/assignments/${temp.assignment.id}`,
+                {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    employeeId: temp.assignment.employeeId,
+                    projectId: temp.toProjectId,
+                    startDate: toUTCStartOfDay(
+                      new Date(temp.assignment.startDate).toISOString()
+                    ),
+                    endDate: toUTCEndOfDay(
+                      new Date(temp.assignment.endDate).toISOString()
+                    ),
+                    utilisation: temp.newUtilization,
+                  }),
+                }
+              );
+
+              if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Failed to move assignment");
+              }
+            } else {
+              if (temp.previousUtilization > 0) {
+                const response = await fetch(
+                  `/api/assignments/${temp.assignment.id}`,
+                  {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      employeeId: temp.assignment.employeeId,
+                      projectId: temp.fromProjectId,
+                      startDate: toUTCStartOfDay(
+                        new Date(temp.assignment.startDate).toISOString()
+                      ),
+                      endDate: toUTCEndOfDay(
+                        new Date(temp.assignment.endDate).toISOString()
+                      ),
+                      utilisation: temp.previousUtilization,
+                    }),
+                  }
+                );
+
+                if (!response.ok) {
+                  const error = await response.json();
+                  throw new Error(
+                    error.error || "Failed to update previous assignment"
+                  );
+                }
+              } else {
+                const response = await fetch(
+                  `/api/assignments/${temp.assignment.id}`,
+                  {
+                    method: "DELETE",
+                  }
+                );
+
+                if (!response.ok) {
+                  const error = await response.json();
+                  throw new Error(
+                    error.error || "Failed to delete previous assignment"
+                  );
+                }
+              }
+
+              if (temp.newUtilization > 0) {
+                const response = await fetch("/api/assignments", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    employeeId: temp.assignment.employeeId,
+                    projectId: temp.toProjectId,
+                    startDate: toUTCStartOfDay(
+                      new Date(temp.assignment.startDate).toISOString()
+                    ),
+                    endDate: toUTCEndOfDay(
+                      new Date(temp.assignment.endDate).toISOString()
+                    ),
+                    utilisation: temp.newUtilization,
+                  }),
+                });
+
+                if (!response.ok) {
+                  const error = await response.json();
+                  throw new Error(
+                    error.error || "Failed to create new assignment"
+                  );
+                }
+              }
+            }
+          } else if (temp.type === "new") {
+            const response = await fetch("/api/assignments", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                employeeId: temp.employeeId,
+                projectId: temp.projectId,
+                startDate: toUTCStartOfDay(
+                  new Date(temp.startDate).toISOString()
+                ),
+                endDate: toUTCEndOfDay(new Date(temp.endDate).toISOString()),
+                utilisation: temp.utilisation,
+              }),
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.error || "Failed to create assignment");
+            }
+          }
+        } catch (error) {
+          // Show error toast for the specific operation
+          toast({
+            title: "Error",
+            description:
+              error instanceof Error ? error.message : "Operation failed",
+            variant: "destructive",
+          });
+          // Continue with other operations
+          continue;
+        }
+      }
+
+      // Refresh projects data after all operations
+      await fetchProjects();
+      setTempAssignments([]);
+      setHasUnsavedChanges(false);
+      toast({
+        title: "Success",
+        description: "Changes saved successfully",
+      });
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save changes. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [tempAssignments, projects, isSaving, fetchProjects]);
+
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
       if (event.key === "Shift") {
@@ -696,39 +818,6 @@ export function GanttChart() {
     copiedResources,
     selectedWeek,
   ]);
-
-  const handleResourceSelect = (resourceId: string, selected: boolean) => {
-    setSelectedResources((prev) => {
-      const newSelection = new Set(prev);
-      if (selected) {
-        newSelection.add(resourceId);
-      } else {
-        newSelection.delete(resourceId);
-      }
-      return newSelection;
-    });
-    console.log(selectedResources);
-  };
-
-  const fetchProjects = async () => {
-    try {
-      const response = await fetch("/api/projects");
-      const data = await response.json();
-      // Create a deep copy of initial data
-      const initialProjects = JSON.parse(JSON.stringify(data.projects));
-      setProjects(initialProjects);
-      // Initialize history with a deep copy
-      setProjectsHistory([
-        {
-          projects: JSON.parse(JSON.stringify(initialProjects)),
-          tempAssignments: [],
-        },
-      ]);
-      setCurrentHistoryIndex(0);
-    } catch (error) {
-      console.error("Failed to fetch projects:", error);
-    }
-  };
 
   const fetchAllEmployees = async () => {
     try {
@@ -1066,6 +1155,10 @@ export function GanttChart() {
     setMovedAssignment(null);
   };
 
+  useEffect(() => {
+    fetchProjects();
+    fetchAllEmployees();
+  }, [fetchProjects]);
   // Update the grid structure in GanttChart.tsx
   return (
     <div className="mx-auto p-4 pb-20">

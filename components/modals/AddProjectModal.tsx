@@ -20,6 +20,7 @@ import { ProjectStatus, Satisfaction, Seniority } from "@prisma/client";
 import { toast } from "@/hooks/use-toast";
 import { Role, Type } from "@/types/models";
 import { satisfactionFormatter } from "@/lib/utils";
+import { toUTCEndOfDay, toUTCStartOfDay } from "@/lib/dateUtils";
 
 interface ProjectRequirement {
   roleId: string;
@@ -154,6 +155,7 @@ export function AddProjectModal({
     });
   };
 
+  // Update the handleSubmit function in AddProjectModal
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -162,14 +164,26 @@ export function AddProjectModal({
         projectData.endDate
       );
 
+      // Convert dates to UTC before sending to API
+      const payload = {
+        ...projectData,
+        status,
+        startDate: toUTCStartOfDay(projectData.startDate),
+        endDate: projectData.endDate
+          ? toUTCEndOfDay(projectData.endDate)
+          : null,
+        tools: projectData.tools.length > 0 ? projectData.tools : ["None"],
+        projectRequirements: projectData.projectRequirements.map((req) => ({
+          ...req,
+          startDate: toUTCStartOfDay(req.startDate),
+          endDate: toUTCEndOfDay(req.endDate),
+        })),
+      };
+
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...projectData,
-          status,
-          tools: projectData.tools.length > 0 ? projectData.tools : ["None"],
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {

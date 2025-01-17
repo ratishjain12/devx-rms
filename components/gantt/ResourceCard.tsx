@@ -5,6 +5,12 @@ import { Assignment, Project } from "@/types/models";
 import { UserCircle2 } from "lucide-react";
 import { EditResourceModal } from "../modals/EditResourceModal";
 
+import {
+  isDateOverlapping,
+  toUTCStartOfDay,
+  toUTCEndOfDay,
+} from "@/lib/dateUtils";
+
 interface ResourceCardProps {
   assignment: Assignment;
   project: Project;
@@ -87,51 +93,39 @@ export function ResourceCard({
     touchAction: "none",
   };
 
+  // ... other imports remain the same
+
   const calculateWeeklyUtilization = () => {
-    // Normalize the start of the week (week is already passed as the start of the week)
-    const weekStart = new Date(week);
-    weekStart.setHours(0, 0, 0, 0); // Set time to midnight to ignore time differences
-
-    // Calculate the end of the week (6 days later) and normalize to midnight
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    weekEnd.setHours(23, 59, 59, 999); // End of day on the last day of the week
-
-    console.log(
-      `Calculating for Week: ${weekStart.toISOString()} to ${weekEnd.toISOString()}`
+    const weekStart = toUTCStartOfDay(week.toISOString());
+    const weekEnd = toUTCEndOfDay(
+      new Date(week.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString()
     );
+
+    console.log(`Calculating for Week UTC: ${weekStart} to ${weekEnd}`);
 
     return allAssignments
       .filter((a) => a.employeeId === assignment.employeeId)
       .reduce((total, currentAssignment) => {
-        const assignmentStart = new Date(currentAssignment.startDate);
-        const assignmentEnd = new Date(currentAssignment.endDate);
-
-        // Normalize both assignment start and end dates to midnight
-        assignmentStart.setHours(0, 0, 0, 0);
-        assignmentEnd.setHours(23, 59, 59, 999); // End of the day
+        const assignmentStart = toUTCStartOfDay(currentAssignment.startDate);
+        const assignmentEnd = toUTCEndOfDay(currentAssignment.endDate);
 
         console.log(
-          `Checking assignment: ${assignmentStart.toISOString()} to ${assignmentEnd.toISOString()}, Utilization: ${
-            currentAssignment.utilisation
-          }`
+          `Checking assignment UTC: ${assignmentStart} to ${assignmentEnd}, Utilization: ${currentAssignment.utilisation}`
         );
 
-        // Check if the assignment overlaps with the week range (ignoring time)
-        const isOverlapping =
-          assignmentStart <= weekEnd && assignmentEnd >= weekStart;
-        if (isOverlapping) {
+        if (
+          isDateOverlapping(assignmentStart, assignmentEnd, weekStart, weekEnd)
+        ) {
           console.log(
             `Assignment overlaps with the week. Adding utilization: ${currentAssignment.utilisation}`
           );
           return total + currentAssignment.utilisation;
-        } else {
-          console.log(`Assignment does NOT overlap with the week.`);
         }
+
+        console.log(`Assignment does NOT overlap with the week.`);
         return total;
       }, 0);
   };
-
   const weeklyUtilization = calculateWeeklyUtilization();
 
   const getUtilizationInfo = (totalUtilization: number) => {
