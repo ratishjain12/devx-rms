@@ -29,7 +29,6 @@ import { toast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Project, Role, Type } from "@/types/models";
 import { ProjectStatus, Seniority, Satisfaction } from "@prisma/client";
-import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Edit, Trash2, Eye, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -40,6 +39,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import CollapsibleTableCell from "@/components/common/CollapsibleCell";
 
 interface EditingProjectRequirement {
   roleId: number;
@@ -365,34 +365,10 @@ export default function Projects() {
                   <TableCell>
                     <div className="relative group capitalize">
                       {project.tools && project.tools.length > 0 ? (
-                        <div>
-                          <span className="flex items-center gap-1">
-                            <Badge variant="secondary">
-                              {project.tools[0]}
-                            </Badge>
-                            {project.tools.length > 1 && (
-                              <Badge variant="secondary">
-                                {project.tools[1]}
-                              </Badge>
-                            )}
-                            {project.tools.length > 2 && (
-                              <span className="border rounded-full flex items-center justify-center w-[28px] h-[28px]">
-                                {`+${project.tools.length - 2}`}
-                              </span>
-                            )}
-                          </span>
-                          {project.tools.length > 2 && (
-                            <div className="absolute left-0 top-full mt-1 hidden w-48 bg-white border border-gray-200 rounded-md shadow-md group-hover:block z-10">
-                              <div className="p-2 text-sm">
-                                {project.tools.slice(2).map((tool) => (
-                                  <div key={tool} className="py-1">
-                                    {tool}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        <CollapsibleTableCell
+                          items={project.tools}
+                          maxVisible={2}
+                        />
                       ) : (
                         "-"
                       )}
