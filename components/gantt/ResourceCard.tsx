@@ -2,7 +2,6 @@ import React, { useState, useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Assignment, Project } from "@/types/models";
-import { UserCircle2 } from "lucide-react";
 import { EditResourceModal } from "../modals/EditResourceModal";
 
 import {
@@ -122,29 +121,29 @@ export function ResourceCard({
   const getUtilizationInfo = (totalUtilization: number) => {
     if (totalUtilization < 50) {
       return {
-        color: "bg-red-100",
-        borderColor: "border-red-200",
-        textColor: "text-red-700",
+        color: "bg-[#FF4500]",
+
+        textColor: "text-[#FFFFFF]",
       };
     }
-    if (totalUtilization >= 50 && totalUtilization < 80) {
+    if (totalUtilization >= 50 && totalUtilization < 90) {
       return {
-        color: "bg-yellow-100",
-        borderColor: "border-yellow-200",
-        textColor: "text-yellow-700",
+        color: "bg-[#FFD700]",
+
+        textColor: "text-[#000000]",
       };
     }
-    if (totalUtilization >= 80 && totalUtilization <= 100) {
+    if (totalUtilization >= 90 && totalUtilization <= 120) {
       return {
-        color: "bg-green-200",
-        borderColor: "border-green-300",
-        textColor: "text-black",
+        color: "bg-[#90EE90]",
+
+        textColor: "text-[#000000]",
       };
     }
     return {
-      color: "bg-green-500",
-      borderColor: "border-green-600",
-      textColor: "text-white",
+      color: "bg-[#FFA500]",
+
+      textColor: "text-[#000000]",
     };
   };
 
@@ -165,7 +164,7 @@ export function ResourceCard({
         onDoubleClick={handleDoubleClick}
         className={`
           w-full rounded border transition-transform transform-gpu
-          ${utilizationInfo.color} ${utilizationInfo.borderColor}
+          bg-[#F9FAFB] px-[8px] py-[6px]
           ${isSelected ? "ring-1 ring-blue-400" : ""}
           ${isResourceSelected ? "ring-2 ring-blue-600" : ""}
           hover:shadow-sm active:shadow-md
@@ -173,20 +172,15 @@ export function ResourceCard({
           select-none
         `}
       >
-        <div className="px-2 py-1 flex items-center justify-between gap-1">
+        <div className=" flex items-center justify-between gap-1">
           <div className="flex items-center gap-1.5 min-w-0">
-            <UserCircle2
-              className={`w-4 h-4 ${utilizationInfo.textColor} ${
-                isDragging ? "animate-pulse" : ""
-              }`}
-            />
-            <span
-              className={`font-medium truncate text-sm ${utilizationInfo.textColor}`}
-            >
+            <span className={`font-medium truncate text-sm `}>
               {assignment.employee.name.split(" ")[0]}
             </span>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div
+            className={`flex items-center gap-1 shrink-0 ${utilizationInfo.color} py-[4px] px-[8px] rounded-[40px]`}
+          >
             <span
               className={`text-xs ${utilizationInfo.textColor} font-medium`}
             >

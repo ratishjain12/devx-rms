@@ -19,11 +19,12 @@ export const calculateProjectRequirementStatus = (
     !project.projectRequirements ||
     project.projectRequirements.length === 0
   ) {
-    return { status: "fulfilled", coverage: 100 };
+    return { status: "unfulfilled", coverage: 0 };
   }
 
   const requirements = project.projectRequirements;
   const assignments = project.assignments || [];
+  console.log(project.assignments);
 
   let totalMet = 0;
   let totalRequired = 0;
@@ -33,12 +34,20 @@ export const calculateProjectRequirementStatus = (
     totalRequired += requiredCount;
 
     // Count matching assignments
-    const matchingAssignments = assignments.filter(
-      (assignment) =>
+    const matchingAssignments = assignments.filter((assignment) => {
+      const assignmentStart = new Date(assignment.startDate);
+      const assignmentEnd = new Date(assignment.endDate);
+      const requirementStart = new Date(req.startDate);
+      const requirementEnd = new Date(req.endDate);
+
+      return (
         assignment.employee.seniority === req.seniority &&
         assignment.employee.roles.some((role) => role === req.role.name) &&
-        assignment.utilisation >= 50 // Consider at least 50% utilization as fulfilling
-    );
+        assignment.utilisation >= 50 && // Consider at least 50% utilization as fulfilling
+        assignmentStart <= requirementStart && // Assignment starts on or before requirement start
+        assignmentEnd >= requirementEnd // Assignment ends on or after requirement end
+      );
+    });
 
     totalMet += Math.min(matchingAssignments.length, requiredCount);
   });
@@ -46,12 +55,7 @@ export const calculateProjectRequirementStatus = (
   const coverage = (totalMet / totalRequired) * 100;
 
   return {
-    status:
-      coverage === 100
-        ? "fulfilled"
-        : coverage >= 50
-        ? "partial"
-        : "unfulfilled",
+    status: coverage === 100 ? "fulfilled" : "unfulfilled",
     coverage,
   };
 };

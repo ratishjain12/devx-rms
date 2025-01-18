@@ -29,7 +29,7 @@ export function AvailableEmployeesList({
   onThresholdChange,
 }: AvailableEmployeesListProps) {
   return (
-    <div className="p-4 max-w-[80vw]  bg-white">
+    <div className="p-4 bg-white">
       <div className="flex justify-between items-center mb-4">
         <div>
           <h2 className="text-lg font-semibold">Available Employees</h2>
@@ -71,17 +71,16 @@ export function AvailableEmployeesList({
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <div className="font-medium">{employee.name}</div>
-                  <div className="text-sm text-gray-600">
-                    {employee.seniority}
+                  <div className="font-medium text-[#444444]">
+                    {employee.name}
+                  </div>
+                  <div className="text-sm capitalize text-[#B6B6B6]">
+                    {employee.seniority.toLowerCase()}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-medium text-green-600">
                     {employee.availableUtilization}% available
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {employee.currentUtilization}% utilized
                   </div>
                 </div>
               </div>

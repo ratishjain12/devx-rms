@@ -40,6 +40,7 @@ import { cn, toISODateString, toISOEndDateString } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { toUTCEndOfDay, toUTCStartOfDay } from "@/lib/dateUtils";
+import { Button } from "../ui/button";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -803,7 +804,7 @@ export function GanttChart() {
 
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
-      if (event.key === "Shift") {
+      if (event.key === "Shift" || event.metaKey) {
         setIsShiftPressed(true);
       }
       const isCmdOrCtrl = event.metaKey || event.ctrlKey;
@@ -1216,7 +1217,7 @@ export function GanttChart() {
   // Update the grid structure in GanttChart.tsx
   return (
     <div className="mx-auto p-4 pb-20">
-      <div className="border rounded-lg bg-white shadow">
+      <div className="border  bg-white ">
         <div className="overflow-x-auto">
           <div className="min-w-max">
             {/* Timeline Header */}
@@ -1299,40 +1300,41 @@ export function GanttChart() {
 
         {/* Footer */}
         <div className="fixed left-0 right-0 bottom-0 p-4 z-20 flex justify-end gap-4 bg-white border-t">
-          <div className="flex gap-2">
-            <button
-              onClick={handleUndo}
-              disabled={currentHistoryIndex <= 0}
-              className={`px-4 py-2 rounded flex items-center gap-2
+          <Button
+            onClick={handleUndo}
+            variant={"secondary"}
+            disabled={currentHistoryIndex <= 0}
+            className={`px-4 py-2 rounded flex items-center gap-2
         ${
           currentHistoryIndex > 0
             ? "bg-gray-100 hover:bg-gray-200"
             : "bg-gray-100 text-gray-400 cursor-not-allowed"
         }`}
-            >
-              <Undo2 size={16} />
-              Undo
-            </button>
-            <button
-              onClick={handleReset}
-              disabled={!hasUnsavedChanges}
-              className={`px-4 py-2 rounded flex items-center gap-2
+          >
+            <Undo2 size={16} />
+            Undo
+          </Button>
+          <Button
+            onClick={handleReset}
+            variant={"secondary"}
+            disabled={!hasUnsavedChanges}
+            className={`px-4 py-2 rounded flex items-center gap-2
         ${
           hasUnsavedChanges
             ? "bg-gray-100 hover:bg-gray-200"
             : "bg-gray-100 text-gray-400 cursor-not-allowed"
         }`}
-            >
-              <RotateCcw size={16} />
-              Reset
-            </button>
-          </div>
-          <button
+          >
+            <RotateCcw size={16} />
+            Reset
+          </Button>
+
+          <Button
             onClick={handleSave}
             disabled={!hasUnsavedChanges || isSaving}
             className={`px-4 py-2 rounded flex items-center gap-2 ${
               hasUnsavedChanges
-                ? "bg-blue-500 text-white hover:bg-blue-600"
+                ? "bg-black text-white hover:bg-secondary hover:text-black"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
@@ -1342,14 +1344,14 @@ export function GanttChart() {
               <Save size={16} />
             )}
             {isSaving ? "Saving..." : "Save"}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowAddProjectModal(true)}
-            className="bg-blue-500 px-4 py-2 rounded flex items-center gap-2 text-white hover:bg-blue-600"
+            className="px-4 py-2 rounded flex items-center gap-2  bg-black text-white hover:bg-secondary hover:text-black"
           >
             <Plus size={16} />
             Add Project
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1382,7 +1384,7 @@ export function GanttChart() {
         />
       )}
       {selectedWeek && (
-        <div className="mb-4 mt-3 max-w-[80vw] border rounded-lg bg-white shadow">
+        <div className="mb-4 mt-3 border max-w-[95vw] sticky left-2 rounded-lg bg-white shadow">
           <AvailableEmployeesList
             employees={availableEmployees}
             weekRange={{
