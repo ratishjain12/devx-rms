@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import prisma from "@/db/db.config";
-import { endOfWeek, startOfWeek } from "date-fns";
 
 // Helper functions for date handling with explicit UTC conversion
 
@@ -18,8 +17,6 @@ export async function DELETE(
   try {
     const data = await params;
     const id = parseInt(data.id);
-    const { weekStart } = await request.json();
-    const weekStartDate = new Date(weekStart);
 
     // Find the assignment
     const assignment = await prisma.assignment.findUnique({
@@ -34,16 +31,9 @@ export async function DELETE(
     }
 
     // Delete the specific week's assignment
-    await prisma.assignment.deleteMany({
+    await prisma.assignment.delete({
       where: {
-        employeeId: assignment.employeeId,
-        projectId: assignment.projectId,
-        startDate: {
-          gte: startOfWeek(weekStartDate, { weekStartsOn: 0 }).toISOString(),
-        },
-        endDate: {
-          lte: endOfWeek(weekStartDate, { weekStartsOn: 0 }).toISOString(),
-        },
+        id: id,
       },
     });
 

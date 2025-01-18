@@ -454,9 +454,6 @@ export function GanttChart() {
             await fetch(`/api/assignments/${temp.assignmentId}/week`, {
               method: "DELETE",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                weekStart: temp.weekStart,
-              }),
             });
           } else if (temp.type === "edited") {
             const response = await fetch(
@@ -628,7 +625,7 @@ export function GanttChart() {
     } finally {
       setIsSaving(false);
     }
-  }, [tempAssignments, projects, isSaving, fetchProjects]);
+  }, [tempAssignments, isSaving, fetchProjects]);
 
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
