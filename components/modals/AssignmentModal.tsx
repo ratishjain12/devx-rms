@@ -1,8 +1,9 @@
-// AssignmentModal.tsx
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { Project, Employee } from "@/types/models";
-import { Calendar } from "lucide-react";
+import { Calendar, ChevronDown } from "lucide-react";
+import { Slider } from "@/components/ui/slider"; // Import the shadcn Slider
+import { Button } from "../ui/button";
 
 interface AssignmentModalProps {
   project: Project;
@@ -24,7 +25,7 @@ export function AssignmentModal({
   onClose,
 }: AssignmentModalProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
-  const [utilization, setUtilization] = useState(100);
+  const [utilization, setUtilization] = useState([100]); // Slider value is an array
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
@@ -39,7 +40,13 @@ export function AssignmentModal({
 
   const handleConfirm = () => {
     if (selectedEmployee !== null && startDate && endDate) {
-      onConfirm(project.id, selectedEmployee, utilization, startDate, endDate);
+      onConfirm(
+        project.id,
+        selectedEmployee,
+        utilization[0], // Slider value is an array, so use the first element
+        startDate,
+        endDate
+      );
     }
   };
 
@@ -48,14 +55,14 @@ export function AssignmentModal({
       <div className="bg-white rounded-lg w-[600px] max-w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="p-6 border-b">
-          <h2 className="text-xl font-bold">Add Assignment</h2>
+          <h2 className="text-xl font-bold">Assign</h2>
         </div>
 
         {/* Project Info Section */}
         <div className="p-6 bg-gray-50 border-b">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-lg">{project.name}</h3>
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+            <span className="px-3 py-1 bg-black text-white cursor-default rounded-full text-sm">
               {project.type}
             </span>
           </div>
@@ -109,24 +116,29 @@ export function AssignmentModal({
             <label className="block text-sm font-medium mb-2">
               Select Employee
             </label>
-            <select
-              value={selectedEmployee || ""}
-              onChange={(e) => setSelectedEmployee(Number(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            >
-              <option value="">Select an employee</option>
-              {Object.entries(groupedEmployees).map(
-                ([seniority, seniorityEmployees]) => (
-                  <optgroup key={seniority} label={seniority}>
-                    {seniorityEmployees.map((employee) => (
-                      <option key={employee.id} value={employee.id}>
-                        {employee.name} - {employee.roles.join(", ")}
-                      </option>
-                    ))}
-                  </optgroup>
-                )
-              )}
-            </select>
+            <div className="relative w-full">
+              <select
+                value={selectedEmployee || ""}
+                onChange={(e) => setSelectedEmployee(Number(e.target.value))}
+                className="w-full px-2  py-3 border border-gray-300 rounded-md appearance-none"
+              >
+                <option value="">Select an employee</option>
+                {Object.entries(groupedEmployees).map(
+                  ([seniority, seniorityEmployees]) => (
+                    <optgroup key={seniority} label={seniority}>
+                      {seniorityEmployees.map((employee) => (
+                        <option key={employee.id} value={employee.id}>
+                          {employee.name} - {employee.roles.join(", ")}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )
+                )}
+              </select>
+              <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+                <ChevronDown className="text-black" size={24} />
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -160,17 +172,18 @@ export function AssignmentModal({
             <label className="block text-sm font-medium mb-2">
               Utilization Percentage
             </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min="0"
-                max="100"
+            <div className="flex items-center gap-4">
+              {/* Shadcn Slider */}
+              <Slider
                 value={utilization}
-                onChange={(e) => setUtilization(Number(e.target.value))}
+                onValueChange={(value) => setUtilization(value)}
+                min={0}
+                max={100}
+                step={1}
                 className="flex-1"
               />
               <span className="w-16 text-center bg-gray-100 px-2 py-1 rounded">
-                {utilization}%
+                {utilization[0]}%
               </span>
             </div>
           </div>
@@ -197,7 +210,9 @@ export function AssignmentModal({
                     </div>
                     <div>
                       <span className="text-gray-600">Seniority:</span>{" "}
-                      <span className="font-medium">{employee.seniority}</span>
+                      <span className="font-medium capitalize">
+                        {employee.seniority.toLowerCase()}
+                      </span>
                     </div>
                   </div>
                 );
@@ -208,19 +223,20 @@ export function AssignmentModal({
 
         {/* Footer - Fixed at bottom */}
         <div className="p-6 border-t bg-gray-50 flex justify-end gap-2 mt-auto">
-          <button
+          <Button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+            variant={"secondary"}
+            className=" rounded-md"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleConfirm}
             disabled={!selectedEmployee || !startDate || !endDate}
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="rounded-md   disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             Add Assignment
-          </button>
+          </Button>
         </div>
       </div>
     </div>

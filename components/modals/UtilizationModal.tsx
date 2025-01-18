@@ -5,6 +5,8 @@ import {
   toUTCEndOfDay,
   toUTCStartOfDay,
 } from "@/lib/dateUtils";
+import { Slider } from "@/components/ui/slider"; // Import the shadcn Slider
+import { Button } from "../ui/button";
 
 interface UtilizationModalProps {
   assignment: Assignment;
@@ -76,8 +78,8 @@ export function UtilizationModal({
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <span className="font-medium">{assignment.employee.name}</span>
-            <span className="text-sm text-blue-600">
-              {assignment.employee.seniority}
+            <span className="text-sm text-[#444444] capitalize">
+              {assignment.employee.seniority.toLowerCase()}
             </span>
           </div>
           <div className="text-sm text-gray-600 mb-4">
@@ -125,16 +127,15 @@ export function UtilizationModal({
             >
               Utilization in {fromProject.name}:
             </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                id="previousUtilization"
-                value={previousUtilization}
-                onChange={(e) => setPreviousUtilization(Number(e.target.value))}
+            <div className="flex items-center gap-4">
+              {/* Shadcn Slider */}
+              <Slider
+                value={[previousUtilization]} // Slider value is an array
+                onValueChange={(value) => setPreviousUtilization(value[0])}
+                min={0}
+                max={100}
+                step={10}
                 className="flex-1"
-                min="0"
-                max="100"
-                step="10"
               />
               <span className="w-16 text-center bg-gray-100 px-2 py-1 rounded">
                 {previousUtilization}%
@@ -148,16 +149,15 @@ export function UtilizationModal({
           <label htmlFor="newUtilization" className="block mb-2 font-medium">
             Utilization in {isSameProject ? fromProject.name : toProject.name}:
           </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              id="newUtilization"
-              value={newUtilization}
-              onChange={(e) => setNewUtilization(Number(e.target.value))}
+          <div className="flex items-center gap-4">
+            {/* Shadcn Slider */}
+            <Slider
+              value={[newUtilization]} // Slider value is an array
+              onValueChange={(value) => setNewUtilization(value[0])}
+              min={0}
+              max={100}
+              step={10}
               className="flex-1"
-              min="0"
-              max="100"
-              step="10"
             />
             <span className="w-16 text-center bg-gray-100 px-2 py-1 rounded">
               {newUtilization}%
@@ -167,18 +167,19 @@ export function UtilizationModal({
 
         {/* Action Buttons */}
         <div className="flex justify-end space-x-2">
-          <button
+          <Button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            variant={"secondary"}
+            className="px-4 py-2 "
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleConfirm}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="bg-black text-white rounded "
           >
             Confirm
-          </button>
+          </Button>
         </div>
       </div>
     </div>

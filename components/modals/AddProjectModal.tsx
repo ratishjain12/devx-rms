@@ -1,4 +1,3 @@
-// components/modals/AddProjectModal.tsx
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -20,7 +19,7 @@ import { ProjectStatus, Satisfaction, Seniority } from "@prisma/client";
 import { toast } from "@/hooks/use-toast";
 import { Role, Type } from "@/types/models";
 import { satisfactionFormatter } from "@/lib/utils";
-import { toUTCEndOfDay, toUTCStartOfDay } from "@/lib/dateUtils";
+import { Trash2 } from "lucide-react";
 
 interface ProjectRequirement {
   roleId: string;
@@ -53,14 +52,21 @@ export function AddProjectModal({
 }: AddProjectModalProps) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [types, setTypes] = useState<Type[]>([]);
+
+  // Initialize with default values in local time
+  const defaultStartDate = new Date().toISOString().split("T")[0];
+  const defaultEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+
   const [projectData, setProjectData] = useState<ProjectData>({
     name: "",
     type: "",
     tools: [],
-    startDate: "",
-    endDate: "",
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
     client_satisfaction: Satisfaction.IDK,
-    projectRequirements: [],
+    projectRequirements: [], // Initialize with empty array since requirements are optional
   });
 
   useEffect(() => {
@@ -75,6 +81,11 @@ export function AddProjectModal({
       setRoles(data);
     } catch (error) {
       console.error("Error fetching roles:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch roles",
+        variant: "destructive",
+      });
     }
   };
 
@@ -83,8 +94,21 @@ export function AddProjectModal({
       const response = await fetch("/api/types");
       const data = await response.json();
       setTypes(data);
+
+      // Set default type when types are fetched
+      if (data.length > 0) {
+        setProjectData((prev) => ({
+          ...prev,
+          type: data[0].name,
+        }));
+      }
     } catch (error) {
       console.error("Error fetching types:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch types",
+        variant: "destructive",
+      });
     }
   };
 
@@ -111,10 +135,10 @@ export function AddProjectModal({
       projectRequirements: [
         ...prev.projectRequirements,
         {
-          roleId: "",
+          roleId: roles.length > 0 ? roles[0].id.toString() : "",
           seniority: Seniority.JUNIOR,
-          startDate: projectData.startDate,
-          endDate: projectData.endDate || "",
+          startDate: prev.startDate,
+          endDate: prev.endDate,
           quantity: "1",
         },
       ],
@@ -130,32 +154,23 @@ export function AddProjectModal({
     }));
   };
 
-  const handleRequirementChange = (
-    index: number,
-    field: keyof ProjectRequirement,
-    value: string
-  ) => {
-    setProjectData((prev) => ({
-      ...prev,
-      projectRequirements: prev.projectRequirements.map((req, i) =>
-        i === index ? { ...req, [field]: value } : req
-      ),
-    }));
-  };
-
   const resetForm = () => {
+    const newStartDate = new Date().toISOString().split("T")[0];
+    const newEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+
     setProjectData({
       name: "",
-      type: "",
+      type: types.length > 0 ? types[0].name : "",
       tools: [],
-      startDate: "",
-      endDate: "",
+      startDate: newStartDate,
+      endDate: newEndDate,
       client_satisfaction: Satisfaction.IDK,
-      projectRequirements: [],
+      projectRequirements: [], // Reset to empty array
     });
   };
 
-  // Update the handleSubmit function in AddProjectModal
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -164,19 +179,17 @@ export function AddProjectModal({
         projectData.endDate
       );
 
-      // Convert dates to UTC before sending to API
       const payload = {
         ...projectData,
         status,
-        startDate: toUTCStartOfDay(projectData.startDate),
-        endDate: projectData.endDate
-          ? toUTCEndOfDay(projectData.endDate)
-          : null,
+        startDate: projectData.startDate,
+        endDate: projectData.endDate,
         tools: projectData.tools.length > 0 ? projectData.tools : ["None"],
         projectRequirements: projectData.projectRequirements.map((req) => ({
           ...req,
-          startDate: toUTCStartOfDay(req.startDate),
-          endDate: toUTCEndOfDay(req.endDate),
+          startDate: req.startDate,
+          endDate: req.endDate,
+          quantity: parseInt(req.quantity),
         })),
       };
 
@@ -194,6 +207,7 @@ export function AddProjectModal({
         title: "Success",
         description: "Project created successfully",
       });
+
       await onProjectAdded();
       onClose();
       resetForm();
@@ -209,101 +223,49 @@ export function AddProjectModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Project</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="name">Project Name</Label>
-              <Input
-                id="name"
-                value={projectData.name}
-                onChange={(e) =>
-                  setProjectData((prev) => ({ ...prev, name: e.target.value }))
-                }
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="type">Project Type</Label>
-              <Select
-                value={projectData.type}
-                onValueChange={(value) =>
-                  setProjectData((prev) => ({ ...prev, type: value }))
-                }
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select project type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {types.map((type) => (
-                    <SelectItem key={type.id} value={type.name}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={projectData.startDate}
-                onChange={(e) =>
-                  setProjectData((prev) => ({
-                    ...prev,
-                    startDate: e.target.value,
-                  }))
-                }
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={projectData.endDate}
-                min={projectData.startDate}
-                onChange={(e) =>
-                  setProjectData((prev) => ({
-                    ...prev,
-                    endDate: e.target.value,
-                  }))
-                }
-              />
-            </div>
-          </div>
-
           <div>
-            <Label htmlFor="tools">Tools (comma-separated)</Label>
+            <Label>Project Name</Label>
             <Input
-              id="tools"
-              value={projectData.tools.join(", ")}
+              value={projectData.name}
               onChange={(e) =>
-                setProjectData((prev) => ({
-                  ...prev,
-                  tools: e.target.value
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                }))
+                setProjectData((prev) => ({ ...prev, name: e.target.value }))
               }
-              placeholder="React, Node.js, etc."
+              placeholder="Enter project name (e.g., Website Redesign)"
+              required
             />
           </div>
 
           <div>
-            <Label htmlFor="client_satisfaction">Client Satisfaction</Label>
+            <Label>Project Type</Label>
             <Select
-              value={satisfactionFormatter(projectData.client_satisfaction)}
+              value={projectData.type}
+              onValueChange={(value) =>
+                setProjectData((prev) => ({ ...prev, type: value }))
+              }
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select project type" />
+              </SelectTrigger>
+              <SelectContent>
+                {types.map((type) => (
+                  <SelectItem key={type.id} value={type.name}>
+                    {type.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Client Satisfaction</Label>
+            <Select
+              value={projectData.client_satisfaction}
               onValueChange={(value) =>
                 setProjectData((prev) => ({
                   ...prev,
@@ -324,103 +286,223 @@ export function AddProjectModal({
             </Select>
           </div>
 
+          <div>
+            <Label>Tools</Label>
+            <Input
+              placeholder="Enter tools separated by commas (e.g., React, TypeScript, Node.js)"
+              value={projectData.tools.join(", ")}
+              onChange={(e) =>
+                setProjectData((prev) => ({
+                  ...prev,
+                  tools: e.target.value
+                    ? e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    : [],
+                }))
+              }
+            />
+          </div>
+
+          {/* Date Input Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={projectData.startDate}
+                min={new Date().toISOString().split("T")[0]}
+                onChange={(e) => {
+                  setProjectData((prev) => ({
+                    ...prev,
+                    startDate: e.target.value,
+                  }));
+                }}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">End Date</label>
+              <input
+                type="date"
+                value={projectData.endDate}
+                min={projectData.startDate}
+                onChange={(e) => {
+                  setProjectData((prev) => ({
+                    ...prev,
+                    endDate: e.target.value,
+                  }));
+                }}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+          </div>
+
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <Label>Project Requirements</Label>
+              <Label>Project Requirements (Optional)</Label>
               <Button
                 type="button"
-                onClick={handleAddRequirement}
                 variant="outline"
-                disabled={!projectData.startDate}
+                onClick={handleAddRequirement}
               >
                 Add Requirement
               </Button>
             </div>
-            <div className="space-y-4 max-h-[300px] overflow-y-auto">
-              {projectData.projectRequirements.map((req, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-6 gap-2 items-end bg-gray-50 p-2 rounded"
-                >
-                  <div className="col-span-2">
-                    <Label>Role</Label>
-                    <Select
-                      value={req.roleId}
-                      onValueChange={(value) =>
-                        handleRequirementChange(index, "roleId", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roles.map((role) => (
-                          <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Seniority</Label>
-                    <Select
-                      value={req.seniority}
-                      onValueChange={(value) =>
-                        handleRequirementChange(
-                          index,
-                          "seniority",
-                          value as Seniority
-                        )
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.values(Seniority).map((level) => (
-                          <SelectItem key={level} value={level}>
-                            {level}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Quantity</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={req.quantity}
-                      onChange={(e) =>
-                        handleRequirementChange(
-                          index,
-                          "quantity",
-                          e.target.value
-                        )
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      className="w-full"
-                      onClick={() => handleRemoveRequirement(index)}
-                    >
-                      Remove
-                    </Button>
-                  </div>
+
+            {projectData.projectRequirements.map((req, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-3 gap-4 items-end border rounded-lg p-4 bg-gray-50"
+              >
+                <div>
+                  <Label>Role</Label>
+                  <Select
+                    value={req.roleId}
+                    onValueChange={(value) => {
+                      const updatedReqs = [...projectData.projectRequirements];
+                      updatedReqs[index] = { ...req, roleId: value };
+                      setProjectData((prev) => ({
+                        ...prev,
+                        projectRequirements: updatedReqs,
+                      }));
+                    }}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id.toString()}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
-            </div>
+
+                <div>
+                  <Label>Seniority</Label>
+                  <Select
+                    value={req.seniority}
+                    onValueChange={(value) => {
+                      const updatedReqs = [...projectData.projectRequirements];
+                      updatedReqs[index] = {
+                        ...req,
+                        seniority: value as Seniority,
+                      };
+                      setProjectData((prev) => ({
+                        ...prev,
+                        projectRequirements: updatedReqs,
+                      }));
+                    }}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select seniority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(Seniority).map((seniority) => (
+                        <SelectItem key={seniority} value={seniority}>
+                          {seniority}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Quantity</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={req.quantity}
+                    onChange={(e) => {
+                      const updatedReqs = [...projectData.projectRequirements];
+                      updatedReqs[index] = { ...req, quantity: e.target.value };
+                      setProjectData((prev) => ({
+                        ...prev,
+                        projectRequirements: updatedReqs,
+                      }));
+                    }}
+                    placeholder="Enter quantity needed"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label>Start Date</Label>
+                  <input
+                    type="date"
+                    value={req.startDate}
+                    onChange={(e) => {
+                      const updatedReqs = [...projectData.projectRequirements];
+                      updatedReqs[index] = {
+                        ...req,
+                        startDate: e.target.value,
+                      };
+                      setProjectData((prev) => ({
+                        ...prev,
+                        projectRequirements: updatedReqs,
+                      }));
+                    }}
+                    min={projectData.startDate}
+                    max={req.endDate}
+                    required
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+
+                <div>
+                  <Label>End Date</Label>
+                  <input
+                    type="date"
+                    value={req.endDate}
+                    onChange={(e) => {
+                      const updatedReqs = [...projectData.projectRequirements];
+                      updatedReqs[index] = {
+                        ...req,
+                        endDate: e.target.value,
+                      };
+                      setProjectData((prev) => ({
+                        ...prev,
+                        projectRequirements: updatedReqs,
+                      }));
+                    }}
+                    min={req.startDate}
+                    max={projectData.endDate}
+                    required
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+
+                <div className="col-span-3 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => handleRemoveRequirement(index)}
+                    className="mt-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
+          <div className="flex justify-end space-x-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-blue-500 hover:bg-blue-300">
+            <Button
+              type="submit"
+              className="bg-black text-white hover:bg-gray-800"
+            >
               Create Project
             </Button>
           </div>

@@ -40,6 +40,7 @@ import { cn, toISODateString, toISOEndDateString } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { toUTCEndOfDay, toUTCStartOfDay } from "@/lib/dateUtils";
+import { Button } from "../ui/button";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -803,7 +804,7 @@ export function GanttChart() {
 
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
-      if (event.key === "Shift") {
+      if (event.key === "Shift" || event.metaKey) {
         setIsShiftPressed(true);
       }
       const isCmdOrCtrl = event.metaKey || event.ctrlKey;
@@ -1299,8 +1300,9 @@ export function GanttChart() {
 
         {/* Footer */}
         <div className="fixed left-0 right-0 bottom-0 p-4 z-20 flex justify-end gap-4 bg-white border-t">
-          <button
+          <Button
             onClick={handleUndo}
+            variant={"secondary"}
             disabled={currentHistoryIndex <= 0}
             className={`px-4 py-2 rounded flex items-center gap-2
         ${
@@ -1311,9 +1313,10 @@ export function GanttChart() {
           >
             <Undo2 size={16} />
             Undo
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleReset}
+            variant={"secondary"}
             disabled={!hasUnsavedChanges}
             className={`px-4 py-2 rounded flex items-center gap-2
         ${
@@ -1324,9 +1327,9 @@ export function GanttChart() {
           >
             <RotateCcw size={16} />
             Reset
-          </button>
+          </Button>
 
-          <button
+          <Button
             onClick={handleSave}
             disabled={!hasUnsavedChanges || isSaving}
             className={`px-4 py-2 rounded flex items-center gap-2 ${
@@ -1341,14 +1344,14 @@ export function GanttChart() {
               <Save size={16} />
             )}
             {isSaving ? "Saving..." : "Save"}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowAddProjectModal(true)}
             className="px-4 py-2 rounded flex items-center gap-2  bg-black text-white hover:bg-secondary hover:text-black"
           >
             <Plus size={16} />
             Add Project
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1381,7 +1384,7 @@ export function GanttChart() {
         />
       )}
       {selectedWeek && (
-        <div className="mb-4 mt-3 max-w-[80vw] border rounded-lg bg-white shadow">
+        <div className="mb-4 mt-3 border max-w-[95vw] sticky left-2 rounded-lg bg-white shadow">
           <AvailableEmployeesList
             employees={availableEmployees}
             weekRange={{
