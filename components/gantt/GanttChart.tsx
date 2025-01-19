@@ -42,6 +42,7 @@ import { Loader2 } from "lucide-react";
 import { toUTCEndOfDay, toUTCStartOfDay } from "@/lib/dateUtils";
 import { Button } from "../ui/button";
 import { WeeklyAssignmentManager } from "@/lib/weekUtils";
+import { useRouter } from "next/navigation";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -109,6 +110,7 @@ const calculateTimelineWeeks = (): Date[] => {
 };
 
 export function GanttChart() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsHistory, setProjectsHistory] = useState<
     {
@@ -470,12 +472,8 @@ export function GanttChart() {
                 body: JSON.stringify({
                   employeeId: temp.updates.employeeId,
                   projectId: temp.updates.projectId,
-                  startDate: toUTCStartOfDay(
-                    new Date(temp.updates.startDate).toISOString()
-                  ),
-                  endDate: toUTCEndOfDay(
-                    new Date(temp.updates.endDate).toISOString()
-                  ),
+                  startDate: temp.updates.startDate,
+                  endDate: temp.updates.endDate,
                   utilisation: temp.updates.utilisation,
                 }),
               }
@@ -621,6 +619,7 @@ export function GanttChart() {
         title: "Success",
         description: "Changes saved successfully",
       });
+      router.refresh();
     } catch (error) {
       console.error("Error saving changes:", error);
       toast({
@@ -631,7 +630,7 @@ export function GanttChart() {
     } finally {
       setIsSaving(false);
     }
-  }, [tempAssignments, isSaving, fetchProjects]);
+  }, [tempAssignments, isSaving, fetchProjects, router]);
 
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
@@ -751,12 +750,20 @@ export function GanttChart() {
 
   const handleReset = () => {
     if (projectsHistory[0]) {
-      // Create deep copies to ensure state isolation
-      const initialState = JSON.parse(JSON.stringify(projectsHistory[0]));
-      setProjects(initialState.projects);
+      // Use handleCircularReferences to create a deep copy of the initial state
+      const initialState = handleCircularReferences(
+        projectsHistory[0].projects
+      );
+
+      // Set the state with the cleaned-up initial state
+      setProjects(initialState);
       setTempAssignments([]);
-      // Reset history to only contain the initial state
-      setProjectsHistory([initialState]);
+      setProjectsHistory([
+        {
+          projects: initialState,
+          tempAssignments: [],
+        },
+      ]);
       setCurrentHistoryIndex(0);
       setHasUnsavedChanges(false);
       setSelectedResources(new Set());
@@ -1066,11 +1073,11 @@ export function GanttChart() {
   // Update the grid structure in GanttChart.tsx
   return (
     <div className="mx-auto p-4 pb-20">
-      <div className="border  bg-white ">
-        <div className="overflow-x-auto">
+      <div className="relative border max-h-[80vh] overflow-y-scroll bg-white ">
+        <div className="sticky top-0 overflow-x-auto">
           <div className="min-w-max">
             {/* Timeline Header */}
-            <div className="sticky top-0  bg-white border-b">
+            <div className="sticky top-0 bg-white border-b">
               <TimelineHeader
                 weeks={weeks}
                 selectedWeek={selectedWeek}
