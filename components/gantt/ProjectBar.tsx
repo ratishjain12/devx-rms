@@ -12,7 +12,7 @@ interface ProjectBarProps {
   project: Project;
   timelineStart: Date;
   timelineEnd: Date;
-  onAddAssignment: (projectId: number) => void;
+  onAddAssignment: (projectId: number, week?: Date) => void;
   selectedWeek: Date | null;
   weeks: Date[];
   onSelectWeek: (week: Date | null) => void;
@@ -73,7 +73,7 @@ function WeekColumn({
   selectedCell: { projectId: number; week: string } | null;
   onCellSelect: (projectId: number, week: string) => void;
   copiedResources: boolean;
-  onAddAssignment: (projectId: number) => void;
+  onAddAssignment: (projectId: number, week?: Date) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `project-${project.id}-week-${week.toISOString()}`,
@@ -102,7 +102,7 @@ function WeekColumn({
 
   const handleAddClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onAddAssignment(project.id);
+    onAddAssignment(project.id, week); // Pass the week start date
   };
 
   return (
