@@ -259,7 +259,21 @@ export function GanttChart() {
     },
     [currentHistoryIndex, projectsHistory]
   );
+  const handleCircularReferences = (projects: Project[]) => {
+    return projects.map((project) => {
+      const projectCopy = { ...project };
+      projectCopy.assignments = project.assignments.map((assignment) => {
+        // Create a clean copy of the assignment
+        const cleanAssignment = { ...assignment };
+        // Point to the new project copy instead of the original
+        cleanAssignment.project = projectCopy;
+        return cleanAssignment;
+      });
+      return projectCopy;
+    });
+  };
 
+  // Update the handlePaste function
   const handlePaste = useCallback(() => {
     if (!copiedResources || !selectedCell) {
       toast({
@@ -271,11 +285,11 @@ export function GanttChart() {
     }
 
     const newTempAssignments = [...tempAssignments];
-    const newProjects = JSON.parse(JSON.stringify(projects));
+    const newProjects = handleCircularReferences(projects);
 
     // Get the target week
     const targetWeek = new Date(selectedCell.week);
-    const targetWeekEnd = addDays(targetWeek, 6); // End of the week
+    const targetWeekEnd = addDays(targetWeek, 6);
 
     for (const assignment of copiedResources.assignments) {
       // Create new assignment for the selected week
@@ -292,7 +306,7 @@ export function GanttChart() {
 
       // Update UI immediately
       const projectIndex = newProjects.findIndex(
-        (p: { id: number }) => p.id === selectedCell.projectId
+        (p) => p.id === selectedCell.projectId
       );
       if (projectIndex !== -1) {
         const employee = allEmployees.find(
@@ -316,7 +330,6 @@ export function GanttChart() {
     }
 
     handleProjectsChange(newProjects, newTempAssignments);
-    setCopiedResources(null);
     setSelectedCell(null);
     setSelectedResources(new Set());
 
@@ -340,12 +353,10 @@ export function GanttChart() {
     setIsDeleting(true);
 
     try {
-      const newProjects = JSON.parse(JSON.stringify(projects));
+      const newProjects = handleCircularReferences(projects);
       const newTempAssignments = [...tempAssignments];
 
       selectedResources.forEach((resourceId) => {
-        // Use regex to properly parse the resource ID
-        // Format is: projectId-assignmentId-YYYY-MM-DDTHH:mm:ss.sssZ
         const matches = resourceId.match(/^(\d+)-(\d+)-(.+)$/);
 
         if (!matches) {
@@ -359,31 +370,27 @@ export function GanttChart() {
 
         // Remove from UI immediately
         const projectIndex = newProjects.findIndex(
-          (p: { id: number }) => p.id === numericProjectId
+          (p) => p.id === numericProjectId
         );
         if (projectIndex !== -1) {
           newProjects[projectIndex].assignments = newProjects[
             projectIndex
-          ].assignments.filter(
-            (a: { id: number }) => a.id !== numericAssignmentId
-          );
+          ].assignments.filter((a) => a.id !== numericAssignmentId);
         }
 
         // Queue for backend deletion
         newTempAssignments.push({
           type: "weekDelete",
           assignmentId: numericAssignmentId,
-          weekStart: weekStr, // This will now be the full date string
+          weekStart: weekStr,
         });
       });
 
-      // Update states
       setProjects(newProjects);
       setTempAssignments(newTempAssignments);
       setHasUnsavedChanges(true);
       setSelectedResources(new Set());
 
-      // Update history
       setProjectsHistory((prev) => [
         ...prev.slice(0, currentHistoryIndex + 1),
         {
@@ -410,6 +417,7 @@ export function GanttChart() {
     tempAssignments,
     currentHistoryIndex,
   ]);
+
   const handleResourceSelect = (resourceId: string, selected: boolean) => {
     setSelectedResources((prev) => {
       const newSelection = new Set(prev);
@@ -427,13 +435,11 @@ export function GanttChart() {
     try {
       const response = await fetch("/api/projects");
       const data = await response.json();
-      // Create a deep copy of initial data
-      const initialProjects = JSON.parse(JSON.stringify(data.projects));
+      const initialProjects = handleCircularReferences(data.projects);
       setProjects(initialProjects);
-      // Initialize history with a deep copy
       setProjectsHistory([
         {
-          projects: JSON.parse(JSON.stringify(initialProjects)),
+          projects: handleCircularReferences(data.projects),
           tempAssignments: [],
         },
       ]);
@@ -670,6 +676,13 @@ export function GanttChart() {
       ) {
         event.preventDefault();
         await handleDeleteSelected();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        setCopiedResources(null);
+        toast({
+          title: "Clipboard cleared",
+          description: "Copied resources have been cleared",
+        });
       }
     };
 
