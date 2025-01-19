@@ -619,7 +619,7 @@ export function GanttChart() {
         title: "Success",
         description: "Changes saved successfully",
       });
-      router.refresh();
+      window.location.reload();
     } catch (error) {
       console.error("Error saving changes:", error);
       toast({
@@ -630,7 +630,7 @@ export function GanttChart() {
     } finally {
       setIsSaving(false);
     }
-  }, [tempAssignments, isSaving, fetchProjects, router]);
+  }, [tempAssignments, isSaving, fetchProjects]);
 
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {

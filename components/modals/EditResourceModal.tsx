@@ -98,8 +98,8 @@ export function EditResourceModal({
           <div>
             <div className="flex justify-between items-center mb-2">
               <span className="font-medium">{assignment?.employee?.name}</span>
-              <span className="text-sm text-blue-600">
-                {assignment?.employee?.seniority}
+              <span className="text-sm text-black capitalize">
+                {assignment?.employee?.seniority.toLowerCase()}
               </span>
             </div>
             <div className="text-sm text-gray-600 mb-4">
