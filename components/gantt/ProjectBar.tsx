@@ -215,31 +215,19 @@ export function ProjectBar({
       <div className="flex-1 relative">
         <div className="flex h-full">
           {weeks.map((week) => {
-            const weekStart = new Date(week);
-            const weekEnd = addDays(weekStart, 6);
+            const weekStart = week;
+            const weekEnd = addDays(week, 6);
             const isSelected =
               selectedWeek &&
               isSameWeek(week, selectedWeek, { weekStartsOn: 0 });
 
-            // Updated assignment filtering logic
             const assignmentsInWeek = project.assignments.filter(
               (assignment) => {
-                // Convert string dates to Date objects
                 const assignmentStart = new Date(assignment.startDate);
                 const assignmentEnd = new Date(assignment.endDate);
-
-                // Normalize all times to UTC midnight for consistent comparison
-                assignmentStart.setUTCHours(0, 0, 0, 0);
-                assignmentEnd.setUTCHours(23, 59, 59, 999);
-                weekStart.setUTCHours(0, 0, 0, 0);
-                weekEnd.setUTCHours(23, 59, 59, 999);
-
-                // Check if the assignment overlaps with the week
                 return (
                   (assignmentStart <= weekEnd && assignmentEnd >= weekStart) ||
-                  (assignmentStart >= weekStart &&
-                    assignmentStart <= weekEnd) ||
-                  (assignmentEnd >= weekStart && assignmentEnd <= weekEnd)
+                  (assignmentStart <= weekStart && assignmentEnd >= weekEnd)
                 );
               }
             );
