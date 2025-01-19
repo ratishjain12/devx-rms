@@ -643,10 +643,6 @@ export function GanttChart() {
       if (isCmdOrCtrl && event.key === "s") {
         event.preventDefault();
         handleSave();
-        toast({
-          title: "Changes Saved",
-          description: "Your changes have been saved successfully.",
-        });
       } else if (isCmdOrCtrl && event.key === "z") {
         event.preventDefault();
         handleUndo();

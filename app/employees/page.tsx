@@ -297,24 +297,49 @@ export default function Employees() {
                       {employee.assignments &&
                       employee.assignments.length > 0 ? (
                         <div>
-                          <span className="capitalize flex items-center">
-                            {employee.assignments[0].project.name}
-                            {employee.assignments.length > 1 && (
-                              <span className="border rounded-full flex items-center justify-center w-[28px] h-[28px] text-sm ml-2">
-                                {`+${employee.assignments.length - 1}`}
+                          {/* Get unique projects */}
+                          {(() => {
+                            // Use a Set to store unique project names
+                            const uniqueProjects = new Set<string>();
+                            employee.assignments.forEach((assignment) => {
+                              uniqueProjects.add(assignment.project.name);
+                            });
+
+                            // Convert the Set back to an array
+                            const uniqueProjectNames =
+                              Array.from(uniqueProjects);
+
+                            return (
+                              <span className="capitalize flex items-center">
+                                {uniqueProjectNames[0]}{" "}
+                                {/* Display the first project name */}
+                                {uniqueProjectNames.length > 1 && (
+                                  <span className="border rounded-full flex items-center justify-center w-[28px] h-[28px] text-sm ml-2">
+                                    {`+${uniqueProjectNames.length - 1}`}
+                                  </span>
+                                )}
                               </span>
-                            )}
-                          </span>
+                            );
+                          })()}
+
+                          {/* Show tooltip with all unique projects */}
                           {employee.assignments.length > 1 && (
                             <div className="absolute left-0 top-full mt-1 hidden w-48 bg-white border border-gray-200 rounded-md shadow-md group-hover:block z-10">
                               <div className="p-2 text-sm">
-                                {employee.assignments.map(
-                                  (assignment, index) => (
-                                    <div key={index}>
-                                      {assignment.project.name}
-                                    </div>
-                                  )
-                                )}
+                                {(() => {
+                                  // Use a Set to store unique project names
+                                  const uniqueProjects = new Set<string>();
+                                  employee.assignments.forEach((assignment) => {
+                                    uniqueProjects.add(assignment.project.name);
+                                  });
+
+                                  // Convert the Set back to an array and render
+                                  return Array.from(uniqueProjects).map(
+                                    (projectName, index) => (
+                                      <div key={index}>{projectName}</div>
+                                    )
+                                  );
+                                })()}
                               </div>
                             </div>
                           )}
