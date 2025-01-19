@@ -38,8 +38,8 @@ export default function RootLayout({
         >
           <AppSidebar />
           <SidebarInset>
-            <header className="flex h-16 shrink-0 items-center gap-2 px-4">
-              <SidebarTrigger className="-ml-1" />
+            <header className="flex h-16 shrink-0 items-center gap-2 px-[24px]">
+              <SidebarTrigger />
             </header>
             {children}
           </SidebarInset>
