@@ -8,6 +8,8 @@ import { Button } from "../ui/button";
 interface AssignmentModalProps {
   project: Project;
   employees: Employee[]; // Changed from availableEmployees to all employees
+  initialStartDate?: string;
+  initialEndDate?: string;
   onConfirm: (
     projectId: number,
     employeeId: number,
@@ -21,13 +23,18 @@ interface AssignmentModalProps {
 export function AssignmentModal({
   project,
   employees,
+  initialStartDate,
+  initialEndDate,
   onConfirm,
   onClose,
 }: AssignmentModalProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [utilization, setUtilization] = useState([100]); // Slider value is an array
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(initialStartDate || "");
+  const [endDate, setEndDate] = useState<string>(initialEndDate || "");
+
+  console.log("Start date", startDate);
+  console.log("End date", endDate);
 
   // Group employees by seniority for better organization
   const groupedEmployees = employees.reduce((acc, employee) => {
@@ -148,7 +155,7 @@ export function AssignmentModal({
               </label>
               <input
                 type="date"
-                value={startDate}
+                value={startDate.split("T")[0]}
                 min={project.startDate.split("T")[0]}
                 max={project.endDate?.split("T")[0]}
                 onChange={(e) => setStartDate(e.target.value)}
@@ -159,7 +166,7 @@ export function AssignmentModal({
               <label className="block text-sm font-medium mb-2">End Date</label>
               <input
                 type="date"
-                value={endDate}
+                value={endDate.split("T")[0]}
                 min={startDate || project.startDate.split("T")[0]}
                 max={project.endDate?.split("T")[0]}
                 onChange={(e) => setEndDate(e.target.value)}

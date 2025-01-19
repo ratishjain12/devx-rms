@@ -163,6 +163,13 @@ export function GanttChart() {
   const weeks = useMemo(calculateTimelineWeeks, []);
   const timelineStart = weeks[0];
   const timelineEnd = weeks[weeks.length - 1];
+  const [selectedDates, setSelectedDates] = useState<{
+    startDate: string;
+    endDate: string;
+  }>({
+    startDate: "",
+    endDate: "",
+  });
 
   const pointerSensor = useSensor(PointerSensor);
   const keyboardSensor = useSensor(KeyboardSensor);
@@ -789,10 +796,24 @@ export function GanttChart() {
 
   console.log(selectedResources);
 
-  const handleAddAssignment = (projectId: number) => {
+  const handleAddAssignment = (projectId: number, weekStart?: Date) => {
     const project = projects.find((p) => p.id === projectId);
     if (project) {
+      let initialStartDate = "";
+      let initialEndDate = "";
+
+      if (weekStart) {
+        // If week is provided, set start and end dates for that week
+        const weekEnd = addDays(weekStart, 6);
+        initialStartDate = toISODateString(weekStart);
+        initialEndDate = toISODateString(weekEnd);
+      }
+
       setSelectedProject(project);
+      setSelectedDates({
+        startDate: initialStartDate,
+        endDate: initialEndDate,
+      });
       setShowAssignmentModal(true);
     }
   };
@@ -1233,9 +1254,15 @@ export function GanttChart() {
           project={selectedProject}
           employees={allEmployees}
           onConfirm={handleAssignmentConfirm}
+          initialStartDate={selectedDates.startDate}
+          initialEndDate={selectedDates.endDate}
           onClose={() => {
             setShowAssignmentModal(false);
             setSelectedProject(null);
+            setSelectedDates({
+              startDate: "",
+              endDate: "",
+            });
           }}
         />
       )}
