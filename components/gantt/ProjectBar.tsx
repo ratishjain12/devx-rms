@@ -135,7 +135,7 @@ function WeekColumn({
         </div>
       ) : (
         <div className="h-8 flex items-center justify-center text-gray-400 text-xs">
-          {isSelected && "No resources"}
+          {isSelected ? `No resources` : project.name}
         </div>
       )}
     </div>
@@ -183,7 +183,7 @@ export function ProjectBar({
   return (
     <div className="flex min-w-max border-b hover:bg-gray-50">
       {/* Project Info Column */}
-      <div className="relative w-48 flex justify-between flex-shrink-0 py-3 px-3 border-r bg-white">
+      <div className="relative w-48 flex justify-between flex-shrink-0 py-1 px-3 border-r bg-white">
         <div className="flex flex-1 items-center justify-between gap-2">
           <div className=" flex justify-between items-center gap-2 min-w-0">
             <div

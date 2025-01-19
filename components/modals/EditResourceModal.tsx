@@ -8,11 +8,9 @@ import {
   DialogOverlay,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  formatDateForInput,
-  toUTCEndOfDay,
-  toUTCStartOfDay,
-} from "@/lib/dateUtils";
+import { formatDateForInput } from "@/lib/dateUtils"; // Remove unnecessary imports
+import { Button } from "../ui/button";
+import { Slider } from "../ui/slider";
 
 interface EditResourceModalProps {
   assignment: Assignment;
@@ -47,12 +45,21 @@ export function EditResourceModal({
   const handleConfirm = (e: React.MouseEvent) => {
     e.stopPropagation();
 
+    // Convert dates to UTC if required
+    const utcStartDate = new Date(startDate).toISOString(); // Convert to UTC
+    const utcEndDate = new Date(endDate).toISOString(); // Convert to UTC
+
+    console.log("Selected Start Date:", startDate);
+    console.log("Selected End Date:", endDate);
+    console.log("UTC Start Date:", utcStartDate);
+    console.log("UTC End Date:", utcEndDate);
+
     onConfirm(
       assignment.id,
       assignment?.employeeId,
       assignment?.projectId,
-      toUTCStartOfDay(startDate),
-      toUTCEndOfDay(endDate),
+      utcStartDate, // Pass the UTC startDate
+      utcEndDate, // Pass the UTC endDate
       utilization
     );
     onClose();
@@ -67,7 +74,11 @@ export function EditResourceModal({
     const { id, value } = e.target;
     if (id === "startDate") setStartDate(value);
     else if (id === "endDate") setEndDate(value);
-    else if (id === "utilization") setUtilization(Number(value));
+  };
+
+  // New function to handle slider changes
+  const handleSliderChange = (value: number[]) => {
+    setUtilization(value[0]); // Update utilization state with the first value from the array
   };
 
   return (
@@ -87,8 +98,8 @@ export function EditResourceModal({
           <div>
             <div className="flex justify-between items-center mb-2">
               <span className="font-medium">{assignment?.employee?.name}</span>
-              <span className="text-sm text-blue-600">
-                {assignment?.employee?.seniority}
+              <span className="text-sm text-black capitalize">
+                {assignment?.employee?.seniority.toLowerCase()}
               </span>
             </div>
             <div className="text-sm text-gray-600 mb-4">
@@ -124,15 +135,13 @@ export function EditResourceModal({
           <div className="grid gap-2">
             <Label htmlFor="utilization">Utilization</Label>
             <div className="flex items-center gap-2">
-              <input
-                type="range"
-                id="utilization"
-                value={utilization}
-                onChange={handleInputChange}
+              <Slider
+                value={[utilization]} // Slider expects an array of numbers
+                onValueChange={handleSliderChange} // Handle slider changes
+                min={0}
+                max={100}
+                step={10}
                 className="flex-1"
-                min="0"
-                max="100"
-                step="10"
                 onClick={(e) => e.stopPropagation()}
               />
               <span className="w-16 text-center bg-gray-100 px-2 py-1 rounded">
@@ -142,21 +151,16 @@ export function EditResourceModal({
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <button
+          <Button
             onClick={(e) => {
               e.stopPropagation();
               onClose();
             }}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            variant={"secondary"}
           >
             Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Confirm
-          </button>
+          </Button>
+          <Button onClick={handleConfirm}>Confirm</Button>
         </div>
       </DialogContent>
     </Dialog>
