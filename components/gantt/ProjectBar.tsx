@@ -3,7 +3,7 @@ import React from "react";
 import { addDays, format, isSameWeek } from "date-fns";
 import { Assignment, Project } from "@/types/models";
 import { ResourceCard } from "./ResourceCard";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Plus } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
 import { calculateProjectRequirementStatus, cn } from "@/lib/utils";
 import Link from "next/link";
@@ -49,12 +49,13 @@ function WeekColumn({
   selectedCell,
   onCellSelect,
   copiedResources,
+  onAddAssignment,
 }: {
   project: Project;
   week: Date;
   isSelected: boolean | null;
   assignments: Assignment[];
-  onSelectWeek: (week: Date) => void;
+  onSelectWeek: (week: Date | null) => void;
   allAssignments: Assignment[];
   isShiftPressed: boolean;
   selectedResources: Set<string>;
@@ -72,6 +73,7 @@ function WeekColumn({
   selectedCell: { projectId: number; week: string } | null;
   onCellSelect: (projectId: number, week: string) => void;
   copiedResources: boolean;
+  onAddAssignment: (projectId: number) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `project-${project.id}-week-${week.toISOString()}`,
@@ -87,8 +89,20 @@ function WeekColumn({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onCellSelect(project.id, week.toISOString());
-    onSelectWeek(week);
+    if (isCellSelected) {
+      // Deselect if already selected
+      onCellSelect(0, "");
+      onSelectWeek(null);
+    } else {
+      // Select new cell
+      onCellSelect(project.id, week.toISOString());
+      onSelectWeek(week);
+    }
+  };
+
+  const handleAddClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAddAssignment(project.id);
   };
 
   return (
@@ -105,7 +119,15 @@ function WeekColumn({
       )}
     >
       {isCellSelected && (
-        <div className="absolute inset-0 border-2 border-blue-400 pointer-events-none" />
+        <>
+          <div className="absolute inset-0 border-2 border-blue-400 pointer-events-none" />
+          <button
+            onClick={handleAddClick}
+            className="absolute top-2 right-2 p-1 bg-black text-white rounded-full hover:bg-gray-800 z-10"
+          >
+            <Plus size={16} />
+          </button>
+        </>
       )}
 
       {copiedResources && !isCellSelected && (
@@ -135,7 +157,7 @@ function WeekColumn({
         </div>
       ) : (
         <div className="h-8 flex items-center justify-center text-gray-400 text-xs">
-          {isSelected ? `No resources` : project.name}
+          {isSelected && project.name}
         </div>
       )}
     </div>
@@ -148,7 +170,7 @@ export function ProjectBar({
   selectedWeek,
   weeks,
   onSelectWeek,
-  allProjects, // New prop
+  allProjects,
   isShiftPressed,
   selectedResources,
   onResourceSelect,
@@ -159,7 +181,6 @@ export function ProjectBar({
 }: ProjectBarProps) {
   const requirementStatus = calculateProjectRequirementStatus(project);
 
-  // Collect all assignments across all projects
   const allAssignments = allProjects.flatMap((p) => p.assignments);
 
   const getProgressInfo = () => {
@@ -185,7 +206,7 @@ export function ProjectBar({
       {/* Project Info Column */}
       <div className="relative w-48 flex justify-between flex-shrink-0 py-1 px-3 border-r bg-white">
         <div className="flex flex-1 items-center justify-between gap-2">
-          <div className=" flex justify-between items-center gap-2 min-w-0">
+          <div className="flex justify-between items-center gap-2 min-w-0">
             <div
               className={`h-full w-[6px] absolute left-0 ${progressInfo.color}`}
             />
@@ -237,9 +258,6 @@ export function ProjectBar({
                 key={week.toISOString()}
                 project={project}
                 week={week}
-                copiedResources={copiedResources}
-                selectedCell={selectedCell}
-                onCellSelect={onCellSelect}
                 isSelected={isSelected}
                 assignments={assignmentsInWeek}
                 onSelectWeek={onSelectWeek}
@@ -248,6 +266,10 @@ export function ProjectBar({
                 selectedResources={selectedResources}
                 onResourceSelect={onResourceSelect}
                 onUpdateAssignment={onUpdateAssignment}
+                selectedCell={selectedCell}
+                onCellSelect={onCellSelect}
+                copiedResources={copiedResources}
+                onAddAssignment={onAddAssignment}
               />
             );
           })}
