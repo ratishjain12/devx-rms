@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { ProjectStatus, Satisfaction, Seniority } from "@prisma/client";
 import { toast } from "@/hooks/use-toast";
-import { Role, Type } from "@/types/models";
+import { Project, Role, Type } from "@/types/models";
 import { satisfactionFormatter } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
 
@@ -42,16 +42,20 @@ interface ProjectData {
 interface AddProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onProjectAdded: () => Promise<void>;
+  onProjectAdded: () => Promise<void | { projects: Project[] } | undefined>;
+  initialRoles: Role[];
+  initialTypes: Type[];
 }
 
 export function AddProjectModal({
   isOpen,
   onClose,
+  initialRoles,
+  initialTypes,
   onProjectAdded,
 }: AddProjectModalProps) {
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [types, setTypes] = useState<Type[]>([]);
+  const [roles] = useState<Role[]>(initialRoles);
+  const [types] = useState<Type[]>(initialTypes);
 
   // Initialize with default values in local time
   const defaultStartDate = new Date().toISOString().split("T")[0];
@@ -61,56 +65,13 @@ export function AddProjectModal({
 
   const [projectData, setProjectData] = useState<ProjectData>({
     name: "",
-    type: "",
+    type: types[0].name,
     tools: [],
     startDate: defaultStartDate,
     endDate: defaultEndDate,
     client_satisfaction: Satisfaction.IDK,
     projectRequirements: [], // Initialize with empty array since requirements are optional
   });
-
-  useEffect(() => {
-    fetchRoles();
-    fetchTypes();
-  }, []);
-
-  const fetchRoles = async () => {
-    try {
-      const response = await fetch("/api/roles");
-      const data = await response.json();
-      setRoles(data);
-    } catch (error) {
-      console.error("Error fetching roles:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch roles",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchTypes = async () => {
-    try {
-      const response = await fetch("/api/types");
-      const data = await response.json();
-      setTypes(data);
-
-      // Set default type when types are fetched
-      if (data.length > 0) {
-        setProjectData((prev) => ({
-          ...prev,
-          type: data[0].name,
-        }));
-      }
-    } catch (error) {
-      console.error("Error fetching types:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch types",
-        variant: "destructive",
-      });
-    }
-  };
 
   const getProjectStatus = (
     startDate: string,
