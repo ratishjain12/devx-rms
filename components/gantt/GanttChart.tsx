@@ -16,15 +16,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import {
-  addWeeks,
-  subWeeks,
-  startOfWeek,
-  addDays,
-  endOfWeek,
-  isWithinInterval,
-  set,
-} from "date-fns";
+import { addWeeks, subWeeks, startOfWeek, addDays } from "date-fns";
 import { ProjectBar } from "./ProjectBar";
 import { TimelineHeader } from "./TimelineHeader";
 import { UtilizationModal } from "../modals/UtilizationModal";
@@ -33,7 +25,7 @@ import {
   AvailableEmployee,
   AvailableEmployeesList,
 } from "./AvailableEmployeesList";
-import { Project, Employee, Assignment } from "@/types/models";
+import { Project, Employee, Assignment, Role, Type } from "@/types/models";
 import { AddProjectModal } from "../modals/AddProjectModal";
 import { Undo2, RotateCcw, Save, Plus } from "lucide-react";
 import { cn, toISODateString, toISOEndDateString } from "@/lib/utils";
@@ -43,6 +35,7 @@ import { toUTCEndOfDay, toUTCStartOfDay } from "@/lib/dateUtils";
 import { Button } from "../ui/button";
 import { WeeklyAssignmentManager } from "@/lib/weekUtils";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 
 interface TempMovedAssignment {
   type: "moved";
@@ -109,6 +102,8 @@ const calculateTimelineWeeks = (): Date[] => {
   return weeks;
 };
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export function GanttChart() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -170,6 +165,127 @@ export function GanttChart() {
     startDate: "",
     endDate: "",
   });
+  // Fetch projects using SWR
+  const {
+    data: projectsData,
+    error: projectsError,
+    mutate: mutateProjects,
+  } = useSWR<{ projects: Project[] }>("/api/projects", fetcher, {
+    revalidateOnFocus: false, // Disable revalidation on window focus
+  });
+
+  // Fetch employees using SWR
+  const {
+    data: employeesData,
+    error: employeesError,
+    mutate: mutateEmployees,
+  } = useSWR<Employee[]>("/api/employees", fetcher);
+
+  const {
+    data: rolesData,
+    error: rolesError,
+    mutate: mutateRoles,
+  } = useSWR<Role[]>("/api/roles", fetcher);
+
+  const {
+    data: typesData,
+    error: typesError,
+    mutate: mutateTypes,
+  } = useSWR<Type[]>("/api/types", fetcher);
+
+  const {
+    data: availableEmployeesData,
+    error: availableEmployeesError,
+    mutate: mutateAvailableEmployees,
+  } = useSWR<AvailableEmployee[]>(
+    selectedWeek
+      ? `/api/employees/available?startDate=${selectedWeek.toISOString()}&endDate=${addDays(
+          selectedWeek,
+          6
+        ).toISOString()}&availabilityThreshold=${availabilityThreshold}`
+      : null,
+    fetcher
+  );
+
+  useEffect(() => {
+    if (projectsData) {
+      const initialProjects = handleCircularReferences(projectsData.projects);
+      setProjects(initialProjects);
+      setProjectsHistory([
+        {
+          projects: initialProjects,
+          tempAssignments: [],
+        },
+      ]);
+      setCurrentHistoryIndex(0);
+    }
+  }, [projectsData]);
+
+  useEffect(() => {
+    if (employeesData) {
+      setAllEmployees(employeesData);
+    }
+  }, [employeesData]);
+
+  useEffect(() => {
+    if (availableEmployeesData) {
+      setAvailableEmployees(availableEmployeesData);
+    }
+  }, [availableEmployeesData]);
+
+  useEffect(() => {
+    if (projectsError) {
+      console.error("Failed to fetch projects:", projectsError);
+      toast({
+        title: "Error",
+        description: "Failed to fetch projects",
+        variant: "destructive",
+      });
+    }
+    if (employeesError) {
+      console.error("Failed to fetch employees:", employeesError);
+      toast({
+        title: "Error",
+        description: "Failed to fetch employees",
+        variant: "destructive",
+      });
+    }
+
+    if (rolesError) {
+      console.error("Failed to fetch roles:", rolesError);
+      toast({
+        title: "Error",
+        description: "Failed to fetch roles",
+        variant: "destructive",
+      });
+    }
+
+    if (typesError) {
+      console.error("Failed to fetch types:", typesError);
+      toast({
+        title: "Error",
+        description: "Failed to fetch types",
+        variant: "destructive",
+      });
+    }
+    if (availableEmployeesError) {
+      console.error(
+        "Failed to fetch available employees:",
+        availableEmployeesError
+      );
+      toast({
+        title: "Error",
+        description: "Failed to fetch available employees",
+        variant: "destructive",
+      });
+    }
+  }, [
+    projectsError,
+    employeesError,
+    availableEmployeesError,
+    rolesError,
+    typesError,
+  ]);
 
   const pointerSensor = useSensor(PointerSensor);
   const keyboardSensor = useSensor(KeyboardSensor);
@@ -619,14 +735,15 @@ export function GanttChart() {
       }
 
       // Refresh projects data after all operations
-      await fetchProjects();
+
       setTempAssignments([]);
       setHasUnsavedChanges(false);
+      mutateProjects();
+      mutateEmployees();
       toast({
         title: "Success",
         description: "Changes saved successfully",
       });
-      window.location.reload();
     } catch (error) {
       console.error("Error saving changes:", error);
       toast({
@@ -637,7 +754,7 @@ export function GanttChart() {
     } finally {
       setIsSaving(false);
     }
-  }, [tempAssignments, isSaving, fetchProjects]);
+  }, [tempAssignments, isSaving, mutateProjects, mutateEmployees]);
 
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
@@ -1087,10 +1204,6 @@ export function GanttChart() {
     setMovedAssignment(null);
   };
 
-  useEffect(() => {
-    fetchProjects();
-    fetchAllEmployees();
-  }, [fetchProjects]);
   // Update the grid structure in GanttChart.tsx
   return (
     <div className="mx-auto p-4 pb-20">
@@ -1279,12 +1392,15 @@ export function GanttChart() {
           />
         </div>
       )}
-
-      <AddProjectModal
-        isOpen={showAddProjectModal}
-        onClose={() => setShowAddProjectModal(false)}
-        onProjectAdded={fetchProjects}
-      />
+      {showAddProjectModal && (
+        <AddProjectModal
+          isOpen={showAddProjectModal}
+          initialRoles={rolesData as Role[]}
+          initialTypes={typesData as Type[]}
+          onClose={() => setShowAddProjectModal(false)}
+          onProjectAdded={mutateProjects}
+        />
+      )}
     </div>
   );
 }

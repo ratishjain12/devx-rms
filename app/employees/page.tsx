@@ -39,7 +39,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import CollapsibleTableCell from "@/components/common/CollapsibleCell";
+import CollapsibleTableCell from "@/components/ui/CollapsibleCell";
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
