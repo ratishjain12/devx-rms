@@ -13,7 +13,7 @@ export interface AvailableEmployee {
 }
 
 interface AvailableEmployeesListProps {
-  employees: AvailableEmployee[];
+  employees: AvailableEmployee[] | undefined;
   weekRange: {
     start: Date;
     end: Date;
@@ -57,14 +57,14 @@ export function AvailableEmployeesList({
         </div>
       </div>
 
-      {employees.length === 0 ? (
+      {employees?.length === 0 ? (
         <p className="text-gray-500">
           No employees available at {threshold}% threshold for the selected week
           range.
         </p>
       ) : (
         <div className="flex flex-wrap gap-3">
-          {employees.map((employee) => (
+          {employees?.map((employee) => (
             <div
               key={employee.id}
               className="bg-gray-50 p-3 rounded border border-gray-100 hover:border-blue-200 transition-colors flex-grow basis-[250px] max-w-[300px]"
