@@ -120,9 +120,6 @@ export function GanttChart() {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showAddProjectModal, setShowAddProjectModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [availableEmployees, setAvailableEmployees] = useState<
-    AvailableEmployee[]
-  >([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [tempAssignments, setTempAssignments] = useState<TempAssignment[]>([]);
   const [movedAssignment, setMovedAssignment] = useState<{
@@ -226,12 +223,6 @@ export function GanttChart() {
       setAllEmployees(employeesData);
     }
   }, [employeesData]);
-
-  useEffect(() => {
-    if (availableEmployeesData) {
-      setAvailableEmployees(availableEmployeesData);
-    }
-  }, [availableEmployeesData]);
 
   useEffect(() => {
     if (projectsError) {
@@ -739,7 +730,7 @@ export function GanttChart() {
       setTempAssignments([]);
       setHasUnsavedChanges(false);
       mutateProjects();
-      mutateEmployees();
+
       toast({
         title: "Success",
         description: "Changes saved successfully",
@@ -754,7 +745,7 @@ export function GanttChart() {
     } finally {
       setIsSaving(false);
     }
-  }, [tempAssignments, isSaving, mutateProjects, mutateEmployees]);
+  }, [tempAssignments, isSaving, mutateProjects]);
 
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
@@ -829,16 +820,6 @@ export function GanttChart() {
     selectedWeek,
   ]);
 
-  const fetchAllEmployees = async () => {
-    try {
-      const response = await fetch("/api/employees");
-      const data = await response.json();
-      setAllEmployees(data);
-    } catch (error) {
-      console.error("Failed to fetch employees:", error);
-    }
-  };
-
   const handleUpdateAssignment = (
     assignmentId: number,
     updates: {
@@ -895,20 +876,6 @@ export function GanttChart() {
   };
   const handleWeekSelect = async (week: Date | null) => {
     setSelectedWeek(week);
-    if (week) {
-      try {
-        const weekEnd = addDays(week, 6);
-        const response = await fetch(
-          `/api/employees/available?startDate=${week.toISOString()}&endDate=${weekEnd.toISOString()}&availabilityThreshold=${availabilityThreshold}`
-        );
-        const data = await response.json();
-        setAvailableEmployees(data);
-      } catch (error) {
-        console.error("Failed to fetch available employees:", error);
-      }
-    } else {
-      setAvailableEmployees([]);
-    }
   };
 
   console.log(selectedResources);
@@ -1107,18 +1074,6 @@ export function GanttChart() {
 
   const handleThresholdChange = async (newThreshold: number) => {
     setAvailabilityThreshold(newThreshold);
-    if (selectedWeek) {
-      try {
-        const weekEnd = addDays(selectedWeek, 6);
-        const response = await fetch(
-          `/api/employees/available?startDate=${selectedWeek.toISOString()}&endDate=${weekEnd.toISOString()}&availabilityThreshold=${newThreshold}`
-        );
-        const data = await response.json();
-        setAvailableEmployees(data);
-      } catch (error) {
-        console.error("Failed to fetch available employees:", error);
-      }
-    }
   };
 
   const handleUtilizationConfirm = (
@@ -1382,7 +1337,7 @@ export function GanttChart() {
       {selectedWeek && (
         <div className="mb-4 mt-3 border max-w-[95vw] sticky left-2 rounded-lg bg-white shadow">
           <AvailableEmployeesList
-            employees={availableEmployees}
+            employees={availableEmployeesData}
             weekRange={{
               start: selectedWeek,
               end: addDays(selectedWeek, 6),
