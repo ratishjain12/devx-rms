@@ -121,12 +121,6 @@ function WeekColumn({
       {isCellSelected && (
         <>
           <div className="absolute inset-0 border-2 border-blue-400 pointer-events-none" />
-          <button
-            onClick={handleAddClick}
-            className="absolute top-2 right-2 p-1 bg-black text-white rounded-full hover:bg-gray-800 z-10"
-          >
-            <Plus size={16} />
-          </button>
         </>
       )}
 
@@ -156,8 +150,18 @@ function WeekColumn({
           ))}
         </div>
       ) : (
-        <div className="h-8 flex items-center justify-center text-gray-400 text-xs">
-          {isSelected && project.name}
+        <div className="h-full py-2 flex items-center justify-center text-gray-400 text-xs">
+          {isSelected && (
+            <div className="flex flex-col items-center gap-2">
+              {project.name}
+              <button
+                onClick={handleAddClick}
+                className=" p-1 bg-black w-fit text-white rounded-full hover:bg-gray-800 z-10"
+              >
+                <Plus size={12} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

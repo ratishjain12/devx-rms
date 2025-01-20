@@ -1094,11 +1094,11 @@ export function GanttChart() {
   // Update the grid structure in GanttChart.tsx
   return (
     <div className="mx-auto p-4 pb-20">
-      <div className="relative border max-h-[80vh] overflow-y-scroll bg-white ">
+      <div className="border overflow-y-scroll bg-white ">
         <div className="sticky top-0 overflow-x-auto">
           <div className="min-w-max">
             {/* Timeline Header */}
-            <div className="sticky top-0 bg-white border-b">
+            <div className="sticky top-0 z-50 bg-white border-b">
               <TimelineHeader
                 weeks={weeks}
                 selectedWeek={selectedWeek}
@@ -1106,8 +1106,6 @@ export function GanttChart() {
               />
             </div>
 
-            {/* Main Timeline Content */}
-            {/* Main Timeline Content in GanttChart.tsx */}
             <div className="relative">
               {/* Fixed grid lines */}
               <div className="absolute inset-0 flex">
@@ -1127,49 +1125,51 @@ export function GanttChart() {
                 </div>
               </div>
 
-              {/* Projects Container */}
-              <div className="relative">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={projects.flatMap((p) =>
-                      p.assignments.flatMap((a) =>
-                        weeks.map(
-                          (week) => `${p.id}-${a.id}-${week.toISOString()}`
-                        )
-                      )
-                    )}
-                    strategy={verticalListSortingStrategy}
+              <div className="max-h-[calc(80vh-56px)] overflow-y-auto">
+                {/* Projects Container */}
+                <div className="relative">
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
                   >
-                    <div>
-                      {projects.map((project) => (
-                        <ProjectBar
-                          key={project.id}
-                          project={project}
-                          timelineStart={timelineStart}
-                          timelineEnd={timelineEnd}
-                          onAddAssignment={handleAddAssignment}
-                          selectedWeek={selectedWeek}
-                          weeks={weeks}
-                          selectedCell={selectedCell}
-                          onCellSelect={(projectId, week) => {
-                            setSelectedCell({ projectId, week });
-                          }}
-                          copiedResources={copiedResources !== null}
-                          isShiftPressed={isShiftPressed}
-                          onResourceSelect={handleResourceSelect}
-                          selectedResources={selectedResources}
-                          allProjects={projects}
-                          onSelectWeek={handleWeekSelect}
-                          onUpdateAssignment={handleUpdateAssignment}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                    <SortableContext
+                      items={projects.flatMap((p) =>
+                        p.assignments.flatMap((a) =>
+                          weeks.map(
+                            (week) => `${p.id}-${a.id}-${week.toISOString()}`
+                          )
+                        )
+                      )}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div>
+                        {projects.map((project) => (
+                          <ProjectBar
+                            key={project.id}
+                            project={project}
+                            timelineStart={timelineStart}
+                            timelineEnd={timelineEnd}
+                            onAddAssignment={handleAddAssignment}
+                            selectedWeek={selectedWeek}
+                            weeks={weeks}
+                            selectedCell={selectedCell}
+                            onCellSelect={(projectId, week) => {
+                              setSelectedCell({ projectId, week });
+                            }}
+                            copiedResources={copiedResources !== null}
+                            isShiftPressed={isShiftPressed}
+                            onResourceSelect={handleResourceSelect}
+                            selectedResources={selectedResources}
+                            allProjects={projects}
+                            onSelectWeek={handleWeekSelect}
+                            onUpdateAssignment={handleUpdateAssignment}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
               </div>
             </div>
           </div>
